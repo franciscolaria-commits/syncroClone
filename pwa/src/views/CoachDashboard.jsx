@@ -785,8 +785,17 @@ export default function CoachDashboard() {
                 const precioRaw = e.target.precio_cobro.value.trim();
                 const precio_cobro_alumnos = precioRaw ? parseFloat(precioRaw) : null;
                 
+                const config_estado_alumno_default = e.target.config_estado_alumno_default.value;
+                const config_vencimiento_tipo = e.target.config_vencimiento_tipo.value;
+                const configVencDiaRaw = e.target.config_vencimiento_dia.value.trim();
+                const config_vencimiento_dia = configVencDiaRaw ? parseInt(configVencDiaRaw) : null;
+                
                 try {
-                  await api.put('/api/v1/coaches/profile', { nombre, especialidad, biografia, anios_experiencia, tipo_cobro_alumnos, precio_cobro_alumnos });
+                  await api.put('/api/v1/coaches/profile', { 
+                    nombre, especialidad, biografia, anios_experiencia, 
+                    tipo_cobro_alumnos, precio_cobro_alumnos,
+                    config_estado_alumno_default, config_vencimiento_tipo, config_vencimiento_dia
+                  });
                   await modal.alert("Perfil actualizado correctamente.");
                   loadData();
                 } catch (error) {
@@ -824,6 +833,33 @@ export default function CoachDashboard() {
                    <div className="flex flex-col gap-1 w-full">
                      <label className="text-xs text-zinc-400 font-semibold">Tarifa ($)</label>
                      <input name="precio_cobro" type="number" step="0.01" min="0" defaultValue={profile.precio_cobro_alumnos || ""} placeholder="Ej. 1500" className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white" />
+                   </div>
+                 </div>
+              </div>
+
+              <div className="p-4 border border-zinc-800 bg-zinc-900/50 rounded-xl flex flex-col gap-4">
+                 <h3 className="text-sm font-bold text-blue-400">Reglas Automáticas de Alumnos</h3>
+                 <p className="text-xs text-zinc-500">Configura qué pasa cuando un alumno nuevo ingresa y cómo se calculan sus vencimientos.</p>
+                 <div className="flex flex-col sm:flex-row gap-4">
+                   <div className="flex flex-col gap-1 w-full">
+                     <label className="text-xs text-zinc-400 font-semibold">Estado inicial por defecto</label>
+                     <select name="config_estado_alumno_default" defaultValue={profile.config_estado_alumno_default || "activo"} className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white outline-none">
+                       <option value="activo">Activo (Puede usar la app al instante)</option>
+                       <option value="suspendido">Suspendido (Debes activarlo manualmente)</option>
+                     </select>
+                   </div>
+                 </div>
+                 <div className="flex flex-col sm:flex-row gap-4 mt-2">
+                   <div className="flex flex-col gap-1 w-full">
+                     <label className="text-xs text-zinc-400 font-semibold">Cálculo de Vencimiento de Pago</label>
+                     <select name="config_vencimiento_tipo" defaultValue={profile.config_vencimiento_tipo || "individual"} className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white outline-none">
+                       <option value="individual">Individual (30 días desde que paga o se registra)</option>
+                       <option value="fijo">Fijo para todos (Un día específico del mes)</option>
+                     </select>
+                   </div>
+                   <div className="flex flex-col gap-1 w-full">
+                     <label className="text-xs text-zinc-400 font-semibold">Día de vencimiento (si es fijo)</label>
+                     <input name="config_vencimiento_dia" type="number" min="1" max="31" defaultValue={profile.config_vencimiento_dia || ""} placeholder="Ej. 10" className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white" />
                    </div>
                  </div>
               </div>

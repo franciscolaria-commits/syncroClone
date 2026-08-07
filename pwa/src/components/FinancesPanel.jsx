@@ -8,7 +8,7 @@ export default function FinancesPanel({ students, api, loadStudents, modal }) {
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(false);
   
-  const [filter, setFilter] = useState('todos'); // todos, pagados, pendientes
+  const [filter, setFilter] = useState('todos'); // todos, pagados, pendientes, vencen_2_dias, vencen_hoy, vencidos
   const [chartMonths, setChartMonths] = useState(6);
 
   const monthYearString = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
@@ -98,8 +98,11 @@ export default function FinancesPanel({ students, api, loadStudents, modal }) {
   
   const filteredPayments = safePayments.filter(p => {
     if (filter === 'pagados') return p.pagado;
-    if (filter === 'pendientes') return !p.pagado && p.estado_activo;
-    return true;
+    if (filter === 'pendientes') return !p.pagado;
+    if (filter === 'vencen_2_dias') return !p.pagado && p.dias_para_vencer === 2;
+    if (filter === 'vencen_hoy') return !p.pagado && p.dias_para_vencer === 0;
+    if (filter === 'vencidos') return !p.pagado && p.dias_para_vencer !== null && p.dias_para_vencer < 0;
+    return true; // todos
   });
 
   const chartData = summary ? [...summary.historial].reverse().slice(-chartMonths) : [];
@@ -182,12 +185,48 @@ export default function FinancesPanel({ students, api, loadStudents, modal }) {
               <ChevronRight className="w-5 h-5" />
             </button>
           </div>
-          
-          <div className="flex bg-zinc-800 p-1 rounded-lg">
-             <button onClick={() => setFilter('todos')} className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors ${filter==='todos'?'bg-zinc-700 text-white':'text-zinc-400 hover:text-zinc-200'}`}>Todos</button>
-             <button onClick={() => setFilter('pagados')} className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors ${filter==='pagados'?'bg-emerald-500/20 text-emerald-400':'text-zinc-400 hover:text-zinc-200'}`}>Pagados</button>
-             <button onClick={() => setFilter('pendientes')} className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors ${filter==='pendientes'?'bg-orange-500/20 text-orange-400':'text-zinc-400 hover:text-zinc-200'}`}>Pendientes</button>
-          </div>
+        </div>
+
+        <h2 className="text-xl font-bold text-white mb-6">Estado de Pagos del Mes</h2>
+                
+        {/* Tabs de Filtro */}
+        <div className="flex flex-wrap gap-2 mb-6">
+          <button 
+            onClick={() => setFilter('todos')}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${filter === 'todos' ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200'}`}
+          >
+            Todos
+          </button>
+          <button 
+            onClick={() => setFilter('pagados')}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${filter === 'pagados' ? 'bg-emerald-500/20 text-emerald-400' : 'text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200'}`}
+          >
+            Pagados
+          </button>
+          <button 
+            onClick={() => setFilter('pendientes')}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${filter === 'pendientes' ? 'bg-red-500/20 text-red-400' : 'text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200'}`}
+          >
+            Pendientes
+          </button>
+          <button 
+            onClick={() => setFilter('vencen_2_dias')}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${filter === 'vencen_2_dias' ? 'bg-yellow-500/20 text-yellow-400' : 'text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200'}`}
+          >
+            Vencen en 2 días
+          </button>
+          <button 
+            onClick={() => setFilter('vencen_hoy')}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${filter === 'vencen_hoy' ? 'bg-orange-500/20 text-orange-400' : 'text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200'}`}
+          >
+            Vencen Hoy
+          </button>
+          <button 
+            onClick={() => setFilter('vencidos')}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${filter === 'vencidos' ? 'bg-red-500/20 text-red-400' : 'text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200'}`}
+          >
+            Vencidos
+          </button>
         </div>
 
         {loading ? (
@@ -207,8 +246,37 @@ export default function FinancesPanel({ students, api, loadStudents, modal }) {
                 {filteredPayments.map(p => (
                   <tr key={p.id_alumno} className="hover:bg-zinc-800/50 transition-colors">
                     <td className="px-4 py-4 font-medium flex flex-col">
-                      <span className="text-white">{p.email_alumno}</span>
-                      <span className="text-xs text-zinc-500">{p.nombre_alumno} {p.telefono_alumno ? `• ${p.telefono_alumno}` : ''}</span>
+                      <div className="flex flex-col gap-1">
+                        <span className="font-medium text-zinc-100">{p.nombre_alumno}</span>
+                        <div className="flex flex-wrap items-center gap-2 text-sm">
+                          {p.pagado ? (
+                            <span className="text-emerald-400 flex items-center gap-1">
+                              <CheckCircle className="w-4 h-4" /> Pagado
+                            </span>
+                          ) : (
+                            <span className="text-red-400">Pendiente</span>
+                          )}
+                          
+                          {!p.pagado && p.dias_para_vencer !== null && (
+                            <span className={`text-xs px-2 py-0.5 rounded-full ${
+                              p.dias_para_vencer < 0 ? 'bg-red-500/20 text-red-400' : 
+                              p.dias_para_vencer === 0 ? 'bg-orange-500/20 text-orange-400' : 
+                              p.dias_para_vencer <= 2 ? 'bg-yellow-500/20 text-yellow-400' : 
+                              'bg-zinc-800 text-zinc-400'
+                            }`}>
+                              {p.dias_para_vencer < 0 ? `Vencido hace ${Math.abs(p.dias_para_vencer)} días` : 
+                               p.dias_para_vencer === 0 ? 'Vence hoy' : 
+                               `Vence en ${p.dias_para_vencer} días`}
+                            </span>
+                          )}
+                          
+                          {p.bloqueado_por_pago && (
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-red-600/30 text-red-300 font-bold border border-red-500/50">
+                              BLOQUEADO
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </td>
                     <td className="px-4 py-4">
                       {!p.estado_activo ? (
@@ -229,12 +297,14 @@ export default function FinancesPanel({ students, api, loadStudents, modal }) {
                       {p.pago?.monto ? `$${p.pago.monto}` : (p.pagado ? 'Sí' : '-')}
                     </td>
                     <td className="px-4 py-4">
-                      <div className="flex justify-end gap-2">
-                        {p.estado_activo && !p.pagado && (
-                           <button onClick={() => handleSendWhatsApp(p)} className="p-2 bg-zinc-800 hover:bg-green-600/20 text-zinc-400 hover:text-green-500 rounded-lg transition-colors group relative" title="Recordatorio WhatsApp">
-                             <MessageCircle className="w-4 h-4" />
-                           </button>
-                        )}
+                      <div className="flex flex-wrap items-center justify-end gap-2 mt-4 sm:mt-0">
+                        <button
+                          onClick={() => handleSendWhatsApp(p)}
+                          className="p-2 rounded-lg bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 transition-colors"
+                          title="Enviar WhatsApp de recordatorio"
+                        >
+                          <MessageCircle className="w-5 h-5" />
+                        </button>
                         {!p.pagado ? (
                           <button onClick={() => handleMarkPaid(p.id_alumno)} className="p-2 bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600 hover:text-white rounded-lg transition-colors" title="Marcar Pagado">
                             <DollarSign className="w-4 h-4" />

@@ -31,6 +31,13 @@ class Entrenador(Base):
     tipo_cobro_alumnos = Column(String, nullable=True) # 'fijo' o 'por_clase' etc.
     precio_cobro_alumnos = Column(Float, nullable=True)
     
+    # Configuración de gestión y pagos
+    config_estado_alumno_default = Column(String, default="activo", nullable=False) # 'activo' o 'suspendido'
+    config_vencimiento_tipo = Column(String, default="individual", nullable=False) # 'fijo' o 'individual'
+    config_vencimiento_dia = Column(Integer, nullable=True) # 1-31
+    config_bloqueo_morosos = Column(String, default="nunca", nullable=False) # 'nunca', 'inmediato', 'dias_despues'
+    config_bloqueo_dias = Column(Integer, default=0, nullable=False)
+    
     usuario = relationship("Usuario")
 
 class PagoEntrenador(Base):
@@ -55,6 +62,12 @@ class Alumno(Base):
     estado_activo = Column(Boolean, default=True, index=True)
     id_rutina_activa = Column(UUID(as_uuid=True), ForeignKey("rutinas.id_rutina"), nullable=True)
     clasificacion = Column(String, nullable=True)
+    
+    # Control de pagos
+    fecha_vencimiento_pago = Column(DateTime, nullable=True)
+    bloqueado_por_pago = Column(Boolean, default=False, nullable=False)
+    recordatorio_enviado_2_dias = Column(Boolean, default=False, nullable=False)
+    recordatorio_enviado_hoy = Column(Boolean, default=False, nullable=False)
     
     usuario = relationship("Usuario")
     entrenador = relationship("Entrenador")

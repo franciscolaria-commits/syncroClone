@@ -63,20 +63,16 @@ def update_coach_profile(
         )
         
     try:
-        if profile_data.nombre is not None:
-            perfil.nombre = profile_data.nombre
-        if profile_data.especialidad is not None:
-            perfil.especialidad = profile_data.especialidad
-        if profile_data.biografia is not None:
-            perfil.biografia = profile_data.biografia
-        if profile_data.anios_experiencia is not None:
-            perfil.anios_experiencia = profile_data.anios_experiencia
-        if profile_data.url_foto_perfil is not None:
-            perfil.url_foto_perfil = profile_data.url_foto_perfil
-        if profile_data.tipo_cobro_alumnos is not None:
-            perfil.tipo_cobro_alumnos = profile_data.tipo_cobro_alumnos
-        if profile_data.precio_cobro_alumnos is not None:
-            perfil.precio_cobro_alumnos = profile_data.precio_cobro_alumnos
+        update_data = profile_data.dict(exclude_unset=True)
+        
+        # Prevenir modificación accidental
+        if "fecha_vencimiento" in update_data:
+            del update_data["fecha_vencimiento"]
+        if "estado_financiero" in update_data:
+            del update_data["estado_financiero"]
+
+        for field, value in update_data.items():
+            setattr(perfil, field, value)
             
         db.commit()
         db.refresh(perfil)
@@ -469,10 +465,19 @@ def get_payments_status(
     
     pagos_dict = {str(p.id_alumno): p for p in pagos}
     
+    ahora = datetime.utcnow()
+    
     result = []
     for al in alumnos:
         usuario_al = db.query(models.Usuario).filter(models.Usuario.id_usuario == al.id_usuario).first()
         pago = pagos_dict.get(str(al.id_usuario))
+        
+        dias_para_vencer = None
+        if al.fecha_vencimiento_pago:
+            # calculo truncando las horas
+            vencimiento_solo_dia = al.fecha_vencimiento_pago.replace(hour=0, minute=0, second=0, microsecond=0)
+            hoy_solo_dia = ahora.replace(hour=0, minute=0, second=0, microsecond=0)
+            dias_para_vencer = (vencimiento_solo_dia - hoy_solo_dia).days
         
         result.append({
             "id_alumno": al.id_usuario,
@@ -481,7 +486,10 @@ def get_payments_status(
             "telefono_alumno": usuario_al.telefono if usuario_al else None,
             "estado_activo": al.estado_activo,
             "pagado": True if pago else False,
-            "pago": pago
+            "pago": pago,
+            "fecha_vencimiento_pago": al.fecha_vencimiento_pago,
+            "dias_para_vencer": dias_para_vencer,
+            "bloqueado_por_pago": al.bloqueado_por_pago
         })
         
     return result
@@ -567,7 +575,6 @@ def register_payment(
     if current_user.rol != "entrenador":
         raise HTTPException(status_code=403, detail="Sólo entrenadores")
         
-    # Verificar si el alumno es suyo
     alumno = db.query(models.Alumno).filter(
         models.Alumno.id_usuario == pago_data.id_alumno,
         models.Alumno.id_entrenador == current_user.id_usuario
@@ -575,7 +582,6 @@ def register_payment(
     if not alumno:
         raise HTTPException(status_code=404, detail="Alumno no encontrado")
         
-    # Verificar si ya existe pago para ese mes
     pago_existente = db.query(models.PagoAlumno).filter(
         models.PagoAlumno.id_alumno == pago_data.id_alumno,
         models.PagoAlumno.anio_mes == pago_data.anio_mes
@@ -586,23 +592,38 @@ def register_payment(
         pago_existente.metodo_pago = pago_data.metodo_pago
         pago_existente.notas = pago_data.notas
         pago_existente.fecha_pago = datetime.utcnow()
-        db.commit()
         db.refresh(pago_existente)
-        return pago_existente
+    else:
+        nuevo_pago = models.PagoAlumno(
+            id_alumno=pago_data.id_alumno,
+            id_entrenador=current_user.id_usuario,
+            anio_mes=pago_data.anio_mes,
+            monto=pago_data.monto,
+            metodo_pago=pago_data.metodo_pago,
+            notas=pago_data.notas
+        )
+        db.add(nuevo_pago)
         
-    nuevo_pago = models.PagoAlumno(
-        id_alumno=pago_data.id_alumno,
-        id_entrenador=current_user.id_usuario,
-        anio_mes=pago_data.anio_mes,
-        monto=pago_data.monto,
-        metodo_pago=pago_data.metodo_pago,
-        notas=pago_data.notas,
-        fecha_pago=datetime.utcnow()
-    )
-    db.add(nuevo_pago)
+    if not alumno.fecha_vencimiento_pago:
+        alumno.fecha_vencimiento_pago = datetime.utcnow() + timedelta(days=30)
+    else:
+        ahora = datetime.utcnow()
+        if alumno.fecha_vencimiento_pago < ahora:
+            alumno.fecha_vencimiento_pago = ahora + timedelta(days=30)
+        else:
+            alumno.fecha_vencimiento_pago = alumno.fecha_vencimiento_pago + timedelta(days=30)
+            
+    alumno.bloqueado_por_pago = False
+    alumno.recordatorio_enviado_2_dias = False
+    alumno.recordatorio_enviado_hoy = False
+    
     db.commit()
-    db.refresh(nuevo_pago)
-    return nuevo_pago
+    
+    if pago_existente:
+        return pago_existente
+    else:
+        db.refresh(nuevo_pago)
+        return nuevo_pago
 
 @router.delete("/payments/{id_pago}")
 def delete_payment(

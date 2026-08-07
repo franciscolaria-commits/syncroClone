@@ -17,7 +17,7 @@ import app.models  # Crucial para que Base.metadata conozca las tablas
 config = context.config
 
 # --- SOBRESCRIBIR LA URL CON LA DEL .ENV ---
-config.set_main_option("sqlalchemy.url", ALEMBIC_DATABASE_URL)
+config.set_main_option("sqlalchemy.url", ALEMBIC_DATABASE_URL.replace("%", "%%"))
 # -------------------------------------------
 
 if config.config_file_name is not None:

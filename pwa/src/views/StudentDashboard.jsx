@@ -42,7 +42,10 @@ export default function StudentDashboard() {
     return <div className="min-h-screen bg-zinc-950 flex items-center justify-center text-zinc-400 font-mono uppercase tracking-widest">Cargando...</div>;
   }
 
-  if (profile?.estado_activo === false || (profile?.data && profile.data.estado_activo === false)) {
+  const isSuspended = profile?.estado_activo === false || (profile?.data && profile.data.estado_activo === false);
+  const isBlockedByPayment = profile?.bloqueado_por_pago || (profile?.data && profile.data.bloqueado_por_pago);
+
+  if (isSuspended) {
     return (
       <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center text-zinc-200 font-sans p-4">
         <div className="bg-red-900/20 border border-red-900/50 p-8 rounded-2xl max-w-md w-full text-center flex flex-col items-center gap-6">
@@ -50,7 +53,12 @@ export default function StudentDashboard() {
             <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
           </div>
           <h1 className="text-2xl font-black uppercase tracking-tighter text-red-400">Acceso Suspendido</h1>
-          <p className="text-sm text-zinc-400">Tu cuenta ha sido suspendida temporalmente por tu entrenador. Por favor, comunícate con él para regularizar tu situación y reactivar tu acceso a las rutinas.</p>
+          <p className="text-sm text-zinc-400">
+            {isBlockedByPayment 
+              ? "Tu cuenta ha sido suspendida automáticamente por falta de pago. Por favor, comunícate con tu entrenador para regularizar tu situación mensual y reactivar tu acceso."
+              : "Tu cuenta ha sido suspendida temporalmente por tu entrenador. Por favor, comunícate con él para regularizar tu situación y reactivar tu acceso a las rutinas."
+            }
+          </p>
           <button onClick={logout} className="mt-4 px-6 py-3 bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-bold uppercase tracking-widest rounded-xl transition-colors w-full">
             Cerrar Sesión
           </button>

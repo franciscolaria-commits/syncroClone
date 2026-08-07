@@ -1,5 +1,5 @@
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
@@ -126,13 +126,41 @@ def register_student(student_data: AlumnoCreate, db: Session = Depends(get_db)):
         db.add(nuevo_usuario)
         db.flush()
         
-        # 4. Crear perfil de Alumno asociado al entrenador
+        # 4. Obtener config del entrenador para setear default_status y vencimiento
+        entrenador_config = db.query(Entrenador).filter(Entrenador.id_usuario == id_entrenador).first()
+        is_activo = True
+        vencimiento = None
+        
+        if entrenador_config:
+            is_activo = (entrenador_config.config_estado_alumno_default == "activo")
+            if entrenador_config.config_vencimiento_tipo == "fijo" and entrenador_config.config_vencimiento_dia:
+                hoy = datetime.utcnow()
+                dia = entrenador_config.config_vencimiento_dia
+                mes = hoy.month
+                anio = hoy.year
+                # Si el dia ya paso este mes, vencimiento el mes que viene
+                if hoy.day >= dia:
+                    mes += 1
+                    if mes > 12:
+                        mes = 1
+                        anio += 1
+                try:
+                    vencimiento = hoy.replace(year=anio, month=mes, day=dia, hour=0, minute=0, second=0, microsecond=0)
+                except ValueError:
+                    # Ej: 30 de febrero
+                    vencimiento = hoy.replace(year=anio, month=mes, day=28, hour=0, minute=0, second=0, microsecond=0)
+            else:
+                # Individual: vence en 30 días exactos desde que se registra
+                vencimiento = datetime.utcnow() + timedelta(days=30)
+                
+        # 5. Crear perfil de Alumno asociado al entrenador
         nuevo_alumno = Alumno(
             id_usuario=nuevo_usuario.id_usuario,
             id_entrenador=id_entrenador,
             peso_corporal_actual=student_data.peso_corporal_actual,
             objetivo=student_data.objetivo,
-            estado_activo=True
+            estado_activo=is_activo,
+            fecha_vencimiento_pago=vencimiento
         )
         db.add(nuevo_alumno)
         
