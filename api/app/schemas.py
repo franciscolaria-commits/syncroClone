@@ -100,6 +100,7 @@ class AlumnoCreate(AlumnoBase):
     email: EmailStr
     password: str = Field(..., min_length=6)
     codigo_invitacion: str = Field(..., description="UUIDv4 de invitación o Email del Entrenador")
+    telefono: str = Field(..., description="WhatsApp con código de país")
 
 class AlumnoUpdate(BaseModel):
     peso: Optional[float] = None

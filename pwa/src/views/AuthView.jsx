@@ -62,6 +62,7 @@ export default function AuthView({ onLoginSuccess }) {
     const password = e.target['reg-student-password'].value;
     const weight = e.target['reg-student-weight'].value;
     const goal = e.target['reg-student-goal'].value;
+    const phone = e.target['reg-student-phone'].value.trim();
     setLoadingAction('registerStudent');
     try {
       await api.post("/api/v1/auth/register-student", {
@@ -69,7 +70,8 @@ export default function AuthView({ onLoginSuccess }) {
         email,
         password,
         peso_corporal_actual: weight ? parseFloat(weight) : null,
-        objetivo: goal || null
+        objetivo: goal || null,
+        telefono: phone
       });
       await modal.alert("¡Registro completado exitosamente! Inicia sesión.");
       // Limpiar URL si venia de link
@@ -176,6 +178,10 @@ export default function AuthView({ onLoginSuccess }) {
             <div>
               <label className="text-xs text-zinc-400 font-semibold block mb-1">Email</label>
               <input type="email" id="reg-student-email" required placeholder="atleta@correo.com" className="w-full border rounded-xl px-4 py-3 text-sm text-zinc-200" />
+            </div>
+            <div>
+              <label className="text-xs text-zinc-400 font-semibold block mb-1">WhatsApp (con código de país)</label>
+              <input type="text" id="reg-student-phone" required placeholder="Ej: 5491123456789" className="w-full border rounded-xl px-4 py-3 text-sm text-zinc-200" />
             </div>
             <div>
               <label className="text-xs text-zinc-400 font-semibold block mb-1">Contraseña (mínimo 6 caracteres)</label>

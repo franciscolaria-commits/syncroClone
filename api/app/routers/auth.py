@@ -120,7 +120,8 @@ def register_student(student_data: AlumnoCreate, db: Session = Depends(get_db)):
         nuevo_usuario = Usuario(
             email=student_data.email.lower(),
             password_hash=hashed_password,
-            rol="alumno"
+            rol="alumno",
+            telefono=student_data.telefono
         )
         db.add(nuevo_usuario)
         db.flush()
