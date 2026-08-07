@@ -403,3 +403,4 @@ class CoachFinanceSummary(BaseModel):
 
 class SuspensionUpdate(BaseModel):
     estado_activo: bool
+    dia_vencimiento_personalizado: Optional[int] = None

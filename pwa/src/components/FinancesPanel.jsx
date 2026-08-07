@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, DollarSign, Ban, CheckCircle, MessageCircle, BarChart2, TrendingUp, Users } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
-export default function FinancesPanel({ students, api, loadStudents, modal }) {
+export default function FinancesPanel({ students, api, loadStudents, modal, profile }) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [payments, setPayments] = useState([]);
   const [summary, setSummary] = useState(null);
@@ -40,8 +40,32 @@ export default function FinancesPanel({ students, api, loadStudents, modal }) {
   const handleToggleSuspend = async (studentId, currentStatus) => {
     const action = currentStatus ? "suspender" : "restaurar";
     if (!(await modal.confirm(`¿Estás seguro de que deseas ${action} el acceso de este alumno?`))) return;
+    
+    let dia_vencimiento_personalizado = null;
+    
+    // Si la accion es restaurar (currentStatus es false) y la config es fijo_por_alumno
+    if (!currentStatus && profile?.config_vencimiento_tipo === "fijo_por_alumno") {
+      const student = payments.find(p => p.id_alumno === studentId);
+      if (student && !student.fecha_vencimiento_pago) {
+        const diaStr = window.prompt("Configuración: Día distinto por alumno.\n\nIngresa el DÍA DEL MES (1-31) en que este alumno debe pagar siempre:");
+        if (!diaStr) {
+           await modal.alert("Debes ingresar un día para poder activar a este alumno.");
+           return;
+        }
+        const dia = parseInt(diaStr);
+        if (isNaN(dia) || dia < 1 || dia > 31) {
+           await modal.alert("Día inválido. Debe ser un número entre 1 y 31.");
+           return;
+        }
+        dia_vencimiento_personalizado = dia;
+      }
+    }
+    
     try {
-      await api.patch(`/api/v1/coaches/students/${studentId}/suspend`, { estado_activo: !currentStatus });
+      await api.patch(`/api/v1/coaches/students/${studentId}/suspend`, { 
+          estado_activo: !currentStatus,
+          dia_vencimiento_personalizado
+      });
       await loadStudents();
       await loadFinances();
       await modal.alert(`Acceso del alumno ${!currentStatus ? 'restaurado' : 'suspendido'} exitosamente.`);

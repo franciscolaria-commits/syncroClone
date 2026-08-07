@@ -24,6 +24,7 @@ export default function CoachDashboard() {
   const [loadingAction, setLoadingAction] = useState(null);
   const [assignMenuOpenId, setAssignMenuOpenId] = useState(null);
   const [selectedStudentsForAssign, setSelectedStudentsForAssign] = useState([]);
+  const [formConfigEstado, setFormConfigEstado] = useState(null);
   const modal = useModal();
 
   useEffect(() => {
@@ -730,7 +731,7 @@ export default function CoachDashboard() {
         )}
 
         {activePanel === 'finances' && (
-          <FinancesPanel students={students} api={api} loadStudents={loadData} modal={modal} />
+          <FinancesPanel students={students} api={api} loadStudents={loadData} modal={modal} profile={profile} />
         )}
 
         {activePanel === 'profile' && (
@@ -843,7 +844,12 @@ export default function CoachDashboard() {
                  <div className="flex flex-col sm:flex-row gap-4">
                    <div className="flex flex-col gap-1 w-full">
                      <label className="text-xs text-zinc-400 font-semibold">Estado inicial por defecto</label>
-                     <select name="config_estado_alumno_default" defaultValue={profile.config_estado_alumno_default || "activo"} className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white outline-none">
+                     <select 
+                       name="config_estado_alumno_default" 
+                       defaultValue={profile.config_estado_alumno_default || "activo"} 
+                       onChange={(e) => setFormConfigEstado(e.target.value)}
+                       className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white outline-none"
+                     >
                        <option value="activo">Activo (Puede usar la app al instante)</option>
                        <option value="suspendido">Suspendido (Debes activarlo manualmente)</option>
                      </select>
@@ -852,16 +858,36 @@ export default function CoachDashboard() {
                  <div className="flex flex-col sm:flex-row gap-4 mt-2">
                    <div className="flex flex-col gap-1 w-full">
                      <label className="text-xs text-zinc-400 font-semibold">Cálculo de Vencimiento de Pago</label>
-                     <select name="config_vencimiento_tipo" defaultValue={profile.config_vencimiento_tipo || "individual"} className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white outline-none">
+                     <select 
+                       name="config_vencimiento_tipo" 
+                       defaultValue={profile.config_vencimiento_tipo || "individual"} 
+                       className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white outline-none"
+                     >
                        <option value="individual">Individual (30 días desde que paga o se registra)</option>
                        <option value="fijo">Fijo para todos (Un día específico del mes)</option>
+                       <option 
+                         value="fijo_por_alumno" 
+                         disabled={(formConfigEstado || profile.config_estado_alumno_default || "activo") === "activo"}
+                       >
+                         Día distinto por alumno (Requiere suspender alumnos nuevos)
+                       </option>
                      </select>
                    </div>
                    <div className="flex flex-col gap-1 w-full">
                      <label className="text-xs text-zinc-400 font-semibold">Día de vencimiento (si es fijo)</label>
-                     <input name="config_vencimiento_dia" type="number" min="1" max="31" defaultValue={profile.config_vencimiento_dia || ""} placeholder="Ej. 10" className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white" />
+                     <input 
+                       name="config_vencimiento_dia" 
+                       type="number" 
+                       min="1" max="31" 
+                       defaultValue={profile.config_vencimiento_dia || ""} 
+                       placeholder="Ej. 10" 
+                       className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white" 
+                     />
                    </div>
                  </div>
+                 <p className="text-xs text-orange-400/80 mt-2">
+                   * Si eliges "Día distinto por alumno", el estado inicial por defecto <strong>debe ser Suspendido</strong>. El sistema te pedirá ingresar el día de cobro de cada alumno al momento de activarlo por primera vez.
+                 </p>
               </div>
 
               <div className="flex flex-col gap-1">
