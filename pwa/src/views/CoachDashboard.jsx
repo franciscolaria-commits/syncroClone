@@ -4,7 +4,7 @@ import { useModal } from '../components/ModalProvider.jsx';
 import WorkoutBuilder from './WorkoutBuilder.jsx';
 import StudentProgress from './StudentProgress.jsx';
 import FinancesPanel from '../components/FinancesPanel.jsx';
-import { Menu, X, Copy } from "lucide-react";
+import { Menu, X, Copy, Download } from "lucide-react";
 
 export default function CoachDashboard() {
   const [activePanel, setActivePanel] = useState('students');
