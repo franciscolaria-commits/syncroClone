@@ -604,14 +604,33 @@ def register_payment(
         )
         db.add(nuevo_pago)
         
+    # Obtener configuración del entrenador para saber cómo sumar el tiempo
+    entrenador_config = db.query(models.Entrenador).filter(models.Entrenador.id_usuario == current_user.id_usuario).first()
+    
     if not alumno.fecha_vencimiento_pago:
         alumno.fecha_vencimiento_pago = datetime.utcnow() + timedelta(days=30)
     else:
-        ahora = datetime.utcnow()
-        if alumno.fecha_vencimiento_pago < ahora:
-            alumno.fecha_vencimiento_pago = ahora + timedelta(days=30)
+        if entrenador_config and entrenador_config.config_vencimiento_tipo == "fijo_por_alumno":
+            # Para este modo, la fecha base siempre es la fecha de vencimiento anterior,
+            # sin importar si pagó tarde, para mantener intacto su número de día.
+            base_date = alumno.fecha_vencimiento_pago
+            
+            # Sumar exactamente 1 mes manteniendo el mismo día
+            import calendar
+            mes = base_date.month + 1
+            anio = base_date.year
+            if mes > 12:
+                mes = 1
+                anio += 1
+            dia_original = alumno.fecha_vencimiento_pago.day
+            _, ultimo_dia_mes = calendar.monthrange(anio, mes)
+            nuevo_dia = min(dia_original, ultimo_dia_mes)
+            alumno.fecha_vencimiento_pago = base_date.replace(year=anio, month=mes, day=nuevo_dia)
         else:
-            alumno.fecha_vencimiento_pago = alumno.fecha_vencimiento_pago + timedelta(days=30)
+            # Lógica anterior de +30 días: si estaba vencido, cuenta desde hoy
+            ahora = datetime.utcnow()
+            base_date = alumno.fecha_vencimiento_pago if alumno.fecha_vencimiento_pago >= ahora else ahora
+            alumno.fecha_vencimiento_pago = base_date + timedelta(days=30)
             
     alumno.bloqueado_por_pago = False
     alumno.recordatorio_enviado_2_dias = False
@@ -665,5 +684,28 @@ def suspend_student(
         raise HTTPException(status_code=404, detail="Alumno no encontrado")
         
     alumno.estado_activo = data.estado_activo
+    
+    # Si se envía un día de vencimiento personalizado al reactivar
+    if data.estado_activo and data.dia_vencimiento_personalizado is not None:
+        hoy = datetime.utcnow()
+        mes = hoy.month
+        anio = hoy.year
+        dia = data.dia_vencimiento_personalizado
+        
+        # Si el día ya pasó este mes, el vencimiento es el mes siguiente
+        if hoy.day >= dia:
+            mes += 1
+            if mes > 12:
+                mes = 1
+                anio += 1
+                
+        # Asegurarnos de que el día sea válido para el mes calculado
+        import calendar
+        _, ultimo_dia_mes = calendar.monthrange(anio, mes)
+        if dia > ultimo_dia_mes:
+            dia = ultimo_dia_mes
+            
+        alumno.fecha_vencimiento_pago = hoy.replace(year=anio, month=mes, day=dia, hour=0, minute=0, second=0, microsecond=0)
+        
     db.commit()
     return {"status": "ok", "estado_activo": alumno.estado_activo}
