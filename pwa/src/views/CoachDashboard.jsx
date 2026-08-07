@@ -313,8 +313,8 @@ export default function CoachDashboard() {
                       <div className="flex flex-col gap-2">
                         <span className="text-xs font-bold text-zinc-300">1. QR para Registrarse (Alumnos Nuevos)</span>
                         <p className="text-[11px] text-zinc-500">Muestra este QR para que el alumno cree su cuenta y se vincule a ti automáticamente.</p>
-                        <div className="flex items-center gap-4 mt-1 bg-zinc-900/50 p-3 rounded-xl border border-zinc-800">
-                          <div className="bg-white p-2 rounded-lg w-24 h-24 flex-shrink-0">
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-1 bg-zinc-900/40 p-4 rounded-2xl border border-zinc-800/60">
+                          <div className="bg-white p-2 rounded-xl w-28 h-28 flex-shrink-0 shadow-lg">
                             <img 
                               src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(window.location.origin + "/login?coachCode=" + invitations[0].codigo_unico)}`} 
                               alt="QR Registro" 
@@ -338,9 +338,9 @@ export default function CoachDashboard() {
                                 modal.alert("Error al descargar el QR.");
                               }
                             }}
-                            className="flex-1 py-2 px-3 bg-zinc-800 hover:bg-blue-600 text-zinc-300 hover:text-white rounded-lg transition-colors text-xs font-bold shadow-md flex items-center justify-center gap-2"
+                            className="w-full sm:w-auto py-2.5 px-5 bg-zinc-800/80 hover:bg-blue-600 text-zinc-300 hover:text-white rounded-full transition-all text-xs font-semibold shadow-sm flex items-center justify-center gap-2 border border-zinc-700/50 hover:border-transparent active:scale-95"
                           >
-                            <Download size={14} /> Descargar QR Registro
+                            <Download size={14} /> Descargar QR
                           </button>
                         </div>
                       </div>
@@ -349,8 +349,8 @@ export default function CoachDashboard() {
                       <div className="flex flex-col gap-2">
                         <span className="text-xs font-bold text-zinc-300">2. QR para Iniciar Sesión (Alumnos Activos)</span>
                         <p className="text-[11px] text-zinc-500">Para alumnos que ya tienen cuenta. Escanean este QR y entran directo.</p>
-                        <div className="flex items-center gap-4 mt-1 bg-zinc-900/50 p-3 rounded-xl border border-zinc-800">
-                          <div className="bg-white p-2 rounded-lg w-24 h-24 flex-shrink-0">
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-1 bg-zinc-900/40 p-4 rounded-2xl border border-zinc-800/60">
+                          <div className="bg-white p-2 rounded-xl w-28 h-28 flex-shrink-0 shadow-lg">
                             <img 
                               src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(window.location.origin)}`} 
                               alt="QR Login" 
@@ -374,9 +374,9 @@ export default function CoachDashboard() {
                                 modal.alert("Error al descargar el QR.");
                               }
                             }}
-                            className="flex-1 py-2 px-3 bg-zinc-800 hover:bg-emerald-600 text-zinc-300 hover:text-white rounded-lg transition-colors text-xs font-bold shadow-md flex items-center justify-center gap-2"
+                            className="w-full sm:w-auto py-2.5 px-5 bg-zinc-800/80 hover:bg-emerald-600 text-zinc-300 hover:text-white rounded-full transition-all text-xs font-semibold shadow-sm flex items-center justify-center gap-2 border border-zinc-700/50 hover:border-transparent active:scale-95"
                           >
-                            <Download size={14} /> Descargar QR Login
+                            <Download size={14} /> Descargar QR
                           </button>
                         </div>
                       </div>
