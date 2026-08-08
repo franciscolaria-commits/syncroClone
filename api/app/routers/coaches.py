@@ -665,6 +665,51 @@ def delete_payment(
     db.commit()
     return {"status": "ok", "message": "Pago eliminado"}
 
+@router.patch("/students/{id_alumno}/payment_date")
+def update_payment_date(
+    id_alumno: str,
+    data: schemas.UpdatePaymentDate,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user)
+):
+    if current_user.rol != "entrenador":
+        raise HTTPException(status_code=403, detail="Sólo entrenadores")
+        
+    alumno = db.query(models.Alumno).filter(
+        models.Alumno.id_usuario == id_alumno,
+        models.Alumno.id_entrenador == current_user.id_usuario
+    ).first()
+    
+    if not alumno:
+        raise HTTPException(status_code=404, detail="Alumno no encontrado")
+        
+    hoy = datetime.utcnow()
+    dia = data.dia_vencimiento_personalizado
+    
+    if alumno.fecha_vencimiento_pago:
+        mes = alumno.fecha_vencimiento_pago.month
+        anio = alumno.fecha_vencimiento_pago.year
+    else:
+        mes = hoy.month
+        anio = hoy.year
+        # Si el día ya pasó este mes, cuenta para el mes siguiente
+        if hoy.day >= dia:
+            mes += 1
+            if mes > 12:
+                mes = 1
+                anio += 1
+                
+    # Asegurar que el día sea válido para el mes calculado (ej. febrero 28)
+    import calendar
+    _, ultimo_dia_mes = calendar.monthrange(anio, mes)
+    if dia > ultimo_dia_mes:
+        dia = ultimo_dia_mes
+        
+    alumno.fecha_vencimiento_pago = hoy.replace(year=anio, month=mes, day=dia, hour=0, minute=0, second=0, microsecond=0)
+    db.commit()
+    
+    return {"status": "ok", "fecha_vencimiento_pago": alumno.fecha_vencimiento_pago}
+
 @router.patch("/students/{id_alumno}/suspend")
 def suspend_student(
     id_alumno: str,

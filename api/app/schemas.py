@@ -119,12 +119,16 @@ class AlumnoOut(AlumnoBase):
     id_entrenador: UUID
     estado_activo: bool
     fecha_ultimo_peso: Optional[datetime] = None
+    fecha_vencimiento_pago: Optional[datetime] = None
     usuario: UsuarioOut
     entrenador: Optional[EntrenadorOut] = None
     rutina_nombre: Optional[str] = None
 
     class Config:
         from_attributes = True
+
+class UpdatePaymentDate(BaseModel):
+    dia_vencimiento_personalizado: int
 
 
 # ==========================================

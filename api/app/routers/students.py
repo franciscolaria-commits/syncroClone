@@ -2,8 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import func, text
-from typing import List
+from typing import List, Optional
 from uuid import UUID
+from datetime import datetime
 
 from app import models, schemas
 from app.database import get_db
@@ -110,6 +111,7 @@ def deactivate_student(
 @router.patch("/{alumno_id}/reactivate", response_model=AlumnoOut)
 def reactivate_student(
     alumno_id: UUID,
+    data: Optional[schemas.UpdatePaymentDate] = None,
     current_user: Usuario = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -126,6 +128,29 @@ def reactivate_student(
         
     try:
         alumno.estado_activo = True
+        
+        # Si se envía un día de vencimiento personalizado al reactivar
+        if data and data.dia_vencimiento_personalizado is not None:
+            hoy = datetime.utcnow()
+            mes = hoy.month
+            anio = hoy.year
+            dia = data.dia_vencimiento_personalizado
+            
+            # Si el día ya pasó este mes, el vencimiento es el mes siguiente
+            if hoy.day >= dia:
+                mes += 1
+                if mes > 12:
+                    mes = 1
+                    anio += 1
+                    
+            # Asegurarnos de que el día sea válido para el mes calculado
+            import calendar
+            _, ultimo_dia_mes = calendar.monthrange(anio, mes)
+            if dia > ultimo_dia_mes:
+                dia = ultimo_dia_mes
+                
+            alumno.fecha_vencimiento_pago = hoy.replace(year=anio, month=mes, day=dia, hour=0, minute=0, second=0, microsecond=0)
+            
         db.commit()
         db.refresh(alumno)
         return alumno

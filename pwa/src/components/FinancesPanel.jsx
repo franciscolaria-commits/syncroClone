@@ -74,6 +74,23 @@ export default function FinancesPanel({ students, api, loadStudents, modal, prof
     }
   };
 
+  const handleUpdatePaymentDate = async (studentId) => {
+    const diaStr = window.prompt("Ingresa el nuevo DÍA DEL MES (1-31) en que este alumno debe pagar siempre:");
+    if (!diaStr) return;
+    const dia = parseInt(diaStr);
+    if (isNaN(dia) || dia < 1 || dia > 31) {
+       await modal.alert("Día inválido. Debe ser un número entre 1 y 31.");
+       return;
+    }
+    try {
+      await api.patch(`/api/v1/coaches/students/${studentId}/payment_date`, { dia_vencimiento_personalizado: dia });
+      await loadStudents();
+      await loadFinances();
+    } catch (error) {
+      await modal.alert(`Error al actualizar el día de pago: ${error.message}`);
+    }
+  };
+
   const handleMarkPaid = async (studentId) => {
     const isPaid = await modal.confirm("¿Confirmas que el alumno ya realizó el pago?");
     if (!isPaid) return;
@@ -317,8 +334,18 @@ export default function FinancesPanel({ students, api, loadStudents, modal, prof
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-4 font-medium text-emerald-400">
+                    <td className="px-4 py-4 font-medium text-emerald-400 flex items-center gap-2">
                       {p.pago?.monto ? `$${p.pago.monto}` : (p.pagado ? 'Sí' : '-')}
+                      
+                      {profile?.config_vencimiento_tipo === "fijo_por_alumno" && (
+                        <button 
+                          onClick={() => handleUpdatePaymentDate(p.id_alumno)} 
+                          className="p-1.5 text-zinc-500 hover:text-emerald-400 bg-zinc-800/50 hover:bg-zinc-800 rounded-md transition-colors ml-2" 
+                          title="Editar día de pago"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                        </button>
+                      )}
                     </td>
                     <td className="px-4 py-4">
                       <div className="flex flex-wrap items-center justify-end gap-2 mt-4 sm:mt-0">

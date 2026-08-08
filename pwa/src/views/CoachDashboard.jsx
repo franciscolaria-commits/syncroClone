@@ -175,8 +175,28 @@ export default function CoachDashboard() {
   };
 
   const handleReactivateStudent = async (id) => {
+    let dia_vencimiento_personalizado = null;
+    
+    // Si la config es fijo_por_alumno y el alumno no tiene fecha, pedimos el día
+    if (profile?.config_vencimiento_tipo === "fijo_por_alumno") {
+       const student = students.find(s => s.id_usuario === id);
+       if (student && !student.fecha_vencimiento_pago) {
+         const diaStr = window.prompt("Configuración: Día distinto por alumno.\n\nIngresa el DÍA DEL MES (1-31) en que este alumno debe pagar siempre:");
+         if (!diaStr) {
+            await modal.alert("Debes ingresar un día para poder activar a este alumno.");
+            return;
+         }
+         const dia = parseInt(diaStr);
+         if (isNaN(dia) || dia < 1 || dia > 31) {
+            await modal.alert("Día inválido. Debe ser un número entre 1 y 31.");
+            return;
+         }
+         dia_vencimiento_personalizado = dia;
+       }
+    }
+    
     try {
-      await api.patch(`/api/v1/coaches/students/${id}/reactivate`);
+      await api.patch(`/api/v1/coaches/students/${id}/reactivate`, { dia_vencimiento_personalizado });
       await modal.alert("Alumno reactivado con éxito.");
       loadData();
     } catch (error) {
@@ -203,6 +223,22 @@ export default function CoachDashboard() {
       loadData();
     } catch (error) {
       await modal.alert(`Error: ${error.message}`);
+    }
+  };
+
+  const handleUpdatePaymentDate = async (id) => {
+    const diaStr = window.prompt("Ingresa el nuevo DÍA DEL MES (1-31) en que este alumno debe pagar siempre:");
+    if (!diaStr) return;
+    const dia = parseInt(diaStr);
+    if (isNaN(dia) || dia < 1 || dia > 31) {
+       await modal.alert("Día inválido. Debe ser un número entre 1 y 31.");
+       return;
+    }
+    try {
+      await api.patch(`/api/v1/coaches/students/${id}/payment_date`, { dia_vencimiento_personalizado: dia });
+      loadData();
+    } catch (error) {
+      await modal.alert(`Error al actualizar el día de pago: ${error.message}`);
     }
   };
 
@@ -477,6 +513,18 @@ export default function CoachDashboard() {
                         </p>
                         <p className="text-xs text-zinc-400 font-medium">Objetivo: <span className="text-blue-400">{alumno.objetivo || "No definido"}</span></p>
                         <p className="text-xs text-zinc-400 font-medium">Rutina: <span className={alumno.rutina_nombre ? "text-emerald-400" : "text-zinc-500"}>{alumno.rutina_nombre || "Ninguna asignada"}</span></p>
+                        
+                        {profile?.config_vencimiento_tipo === "fijo_por_alumno" && (
+                          <p className="text-xs text-zinc-400 font-medium flex items-center gap-2 mt-1 border-t border-zinc-800 pt-1">
+                            Día de pago: 
+                            <span className="text-emerald-400 font-bold">
+                              {alumno.fecha_vencimiento_pago ? new Date(alumno.fecha_vencimiento_pago).getDate() : "No asignado"}
+                            </span>
+                            <button onClick={() => handleUpdatePaymentDate(alumno.id_usuario)} className="text-zinc-500 hover:text-emerald-400 ml-auto" title="Editar día de pago">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                            </button>
+                          </p>
+                        )}
                       </div>
                     </div>
                     <div className="flex gap-2 w-full mt-2">
