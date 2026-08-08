@@ -45,6 +45,10 @@ export default function StudentDashboard() {
   const isSuspended = profile?.estado_activo === false || (profile?.data && profile.data.estado_activo === false);
   const isBlockedByPayment = profile?.bloqueado_por_pago || (profile?.data && profile.data.bloqueado_por_pago);
 
+  if (!profile && !loadingProfile) {
+    return <div className="text-white p-10">ERROR: Profile no cargó. ¿Error 500 del backend?</div>;
+  }
+
   if (isSuspended) {
     return (
       <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center text-zinc-200 font-sans p-4">
