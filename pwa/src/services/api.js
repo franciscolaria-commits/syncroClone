@@ -15,7 +15,7 @@ export function logout() {
     window.indexedDB.deleteDatabase("keyval-store");
   } catch(e) {}
   
-  window.location.reload();
+  window.location.href = "/";
 }
 
 // Wrapper Fetch centralizado

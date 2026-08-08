@@ -149,6 +149,9 @@ def register_student(student_data: AlumnoCreate, db: Session = Depends(get_db)):
                 except ValueError:
                     # Ej: 30 de febrero
                     vencimiento = hoy.replace(year=anio, month=mes, day=28, hour=0, minute=0, second=0, microsecond=0)
+            elif entrenador_config.config_vencimiento_tipo == "fijo_por_alumno":
+                # Fijo por alumno: el campo arranca vacío, el entrenador lo define al activar
+                vencimiento = None
             else:
                 # Individual: vence en 30 días exactos desde que se registra
                 vencimiento = datetime.utcnow() + timedelta(days=30)
