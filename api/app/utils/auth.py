@@ -97,11 +97,8 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     elif usuario.rol == "alumno":
         alumno = db.query(Alumno).filter(Alumno.id_usuario == usuario.id_usuario).first()
         if alumno:
-            if not alumno.estado_activo:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Tu cuenta ha sido suspendida. Por favor, comunícate con tu entrenador."
-                )
+            # Quitamos el bloqueo global de estado_activo para que el frontend pueda obtener el perfil
+            # y renderizar su propia pantalla de Acceso Suspendido.
             entrenador_asignado = db.query(Entrenador).filter(Entrenador.id_usuario == alumno.id_entrenador).first()
             if entrenador_asignado and entrenador_asignado.estado_financiero == "suspendido":
                 raise HTTPException(
