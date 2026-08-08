@@ -686,18 +686,14 @@ def update_payment_date(
     hoy = datetime.utcnow()
     dia = data.dia_vencimiento_personalizado
     
-    if alumno.fecha_vencimiento_pago:
-        mes = alumno.fecha_vencimiento_pago.month
-        anio = alumno.fecha_vencimiento_pago.year
-    else:
-        mes = hoy.month
-        anio = hoy.year
-        # Si el día ya pasó este mes, cuenta para el mes siguiente
-        if hoy.day >= dia:
-            mes += 1
-            if mes > 12:
-                mes = 1
-                anio += 1
+    mes = hoy.month
+    anio = hoy.year
+    # Si el día ya pasó este mes, cuenta para el mes siguiente
+    if hoy.day >= dia:
+        mes += 1
+        if mes > 12:
+            mes = 1
+            anio += 1
                 
     # Asegurar que el día sea válido para el mes calculado (ej. febrero 28)
     import calendar
