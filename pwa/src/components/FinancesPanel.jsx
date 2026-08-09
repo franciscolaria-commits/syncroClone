@@ -288,7 +288,7 @@ export default function FinancesPanel({ students, api, loadStudents, modal, prof
                   {/* Alumno */}
                   <div className="flex flex-col gap-1 w-full">
                     <span className="font-medium text-zinc-100">{p.nombre_alumno}</span>
-                    <div className="flex flex-wrap items-center gap-2 text-sm mt-1">
+                        <div className="flex flex-wrap items-center gap-2 text-sm mt-1">
                       {p.pagado ? (
                         <span className="text-emerald-400 flex items-center gap-1">
                           <CheckCircle className="w-4 h-4" /> Pagado
@@ -313,6 +313,20 @@ export default function FinancesPanel({ students, api, loadStudents, modal, prof
                       {p.bloqueado_por_pago && (
                         <span className="text-xs px-2 py-0.5 rounded-full bg-red-600/30 text-red-300 font-bold border border-red-500/50">
                           BLOQUEADO
+                        </span>
+                      )}
+                    </div>
+                    
+                    {/* Detalles Adicionales */}
+                    <div className="flex flex-col gap-0.5 mt-1">
+                      {p.pagado && p.pago?.fecha_pago && (
+                        <span className="text-xs text-zinc-500">
+                          Pagó el {new Date(p.pago.fecha_pago).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                        </span>
+                      )}
+                      {profile?.config_vencimiento_tipo === "fijo_por_alumno" && p.fecha_vencimiento_pago && (
+                        <span className="text-xs text-zinc-500">
+                          Vence los días {new Date(p.fecha_vencimiento_pago).getUTCDate()} de cada mes
                         </span>
                       )}
                     </div>
