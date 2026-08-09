@@ -4,6 +4,7 @@ import { useModal } from '../components/ModalProvider.jsx';
 import WorkoutBuilder from './WorkoutBuilder.jsx';
 import StudentProgress from './StudentProgress.jsx';
 import FinancesPanel from '../components/FinancesPanel.jsx';
+import TutorialPanel from '../components/TutorialPanel.jsx';
 import { Menu, X, Copy, Download, ChevronDown, ChevronUp } from "lucide-react";
 
 export default function CoachDashboard() {
@@ -285,6 +286,7 @@ export default function CoachDashboard() {
               <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow-lg animate-pulse">{audits.length}</span>
             )}
           </button>
+          <button onClick={() => setActivePanel('tutorial')} className={`px-3 py-2 rounded-xl text-xs font-bold transition-all ${activePanel === 'tutorial' ? 'bg-blue-600 text-white' : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'} ml-2`}>Cómo usar</button>
           <button onClick={() => { setEditingRoutine(null); setIsBuildingRoutine(true); }} className="px-3 py-2 rounded-xl text-xs font-bold transition-all bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/20 ml-2">Crear Rutina</button>
           <button onClick={() => setActivePanel('profile')} className={`px-3 py-2 rounded-xl text-xs font-bold transition-all ${activePanel === 'profile' ? 'bg-blue-600 text-white' : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'} ml-2`}>Perfil</button>
           <button onClick={logout} className="px-3 py-2 rounded-xl text-xs font-bold text-red-400 hover:bg-red-500/10 transition-all border border-red-500/10 ml-2">Salir</button>
@@ -309,6 +311,7 @@ export default function CoachDashboard() {
             <button onClick={() => { setActivePanel('audits'); setIsMobileMenuOpen(false); }} className={`w-full text-left py-3 px-4 rounded-xl text-sm font-bold transition-all flex justify-between items-center ${activePanel === 'audits' ? 'bg-amber-600 text-white' : 'text-zinc-400 hover:bg-white/5'}`}>
               Auditoría {audits.length > 0 && <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">{audits.length}</span>}
             </button>
+            <button onClick={() => { setActivePanel('tutorial'); setIsMobileMenuOpen(false); }} className={`w-full text-left py-3 px-4 rounded-xl text-sm font-bold transition-all ${activePanel === 'tutorial' ? 'bg-blue-600 text-white' : 'text-zinc-400 hover:bg-white/5'}`}>Cómo usar</button>
             <button onClick={() => { setEditingRoutine(null); setIsBuildingRoutine(true); setIsMobileMenuOpen(false); }} className="w-full text-left py-3 px-4 rounded-xl text-sm font-bold transition-all bg-indigo-600 hover:bg-indigo-500 text-white">Crear Rutina</button>
             <button onClick={() => { setActivePanel('profile'); setIsMobileMenuOpen(false); }} className={`w-full text-left py-3 px-4 rounded-xl text-sm font-bold transition-all ${activePanel === 'profile' ? 'bg-blue-600 text-white' : 'text-zinc-400 hover:bg-white/5'}`}>Perfil</button>
             <button onClick={() => { logout(); setIsMobileMenuOpen(false); }} className="w-full text-left py-3 px-4 rounded-xl text-sm font-bold text-red-400 hover:bg-red-500/10">Salir</button>
@@ -803,6 +806,10 @@ export default function CoachDashboard() {
 
         {activePanel === 'finances' && (
           <FinancesPanel students={students} api={api} loadStudents={loadData} modal={modal} profile={profile} />
+        )}
+
+        {activePanel === 'tutorial' && (
+          <TutorialPanel />
         )}
 
         {activePanel === 'profile' && (
