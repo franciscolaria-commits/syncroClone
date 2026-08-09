@@ -950,11 +950,8 @@ export default function CoachDashboard() {
                        placeholder="Ej. 10" 
                        className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white" 
                      />
-                   </div>
+                    </div>
                  </div>
-                 <p className="text-xs text-orange-400/80 mt-2">
-                   * Si eliges "Día distinto por alumno", el estado inicial por defecto <strong>debe ser Suspendido</strong>. El sistema te pedirá ingresar el día de cobro de cada alumno al momento de activarlo por primera vez.
-                 </p>
               </div>
 
               <div className="flex flex-col gap-1">
