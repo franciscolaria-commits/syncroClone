@@ -4,13 +4,15 @@ import { useModal } from '../components/ModalProvider.jsx';
 import WorkoutBuilder from './WorkoutBuilder.jsx';
 import StudentProgress from './StudentProgress.jsx';
 import FinancesPanel from '../components/FinancesPanel.jsx';
-import { Menu, X, Copy, Download } from "lucide-react";
+import { Menu, X, Copy, Download, ChevronDown, ChevronUp } from "lucide-react";
 
 export default function CoachDashboard() {
   const [activePanel, setActivePanel] = useState('students');
   const [selectedStudentId, setSelectedStudentId] = useState(null);
   const [isBuildingRoutine, setIsBuildingRoutine] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isInviteOpen, setIsInviteOpen] = useState(false);
+  const [isStudentsOpen, setIsStudentsOpen] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [email, setEmail] = useState('');
   const [students, setStudents] = useState([]);
@@ -327,13 +329,20 @@ export default function CoachDashboard() {
             </div>
           ) : (
           <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="glass-card rounded-2xl p-6 shadow-lg md:col-span-1 flex flex-col gap-6 order-2 md:order-1">
-              <div>
-                <h2 className="text-lg font-bold text-zinc-100">Formas de invitar a tus alumnos</h2>
-                <p className="text-xs text-zinc-400 mt-2 leading-relaxed">Tus alumnos quedarán vinculados a tu cuenta de manera automática con cualquiera de estos métodos. (Los códigos no expiran).</p>
+            <div className="glass-card rounded-2xl p-6 shadow-lg md:col-span-1 flex flex-col gap-4 order-2 md:order-1">
+              <div 
+                className="flex items-center justify-between cursor-pointer" 
+                onClick={() => setIsInviteOpen(!isInviteOpen)}
+              >
+                <div>
+                  <h2 className="text-lg font-bold text-zinc-100">Formas de invitar a tus alumnos</h2>
+                  <p className="text-xs text-zinc-400 mt-1 leading-relaxed">Tus alumnos quedarán vinculados a tu cuenta automáticamente (los códigos no expiran).</p>
+                </div>
+                {isInviteOpen ? <ChevronUp className="text-zinc-400 flex-shrink-0 ml-2" /> : <ChevronDown className="text-zinc-400 flex-shrink-0 ml-2" />}
               </div>
               
-              <div className="flex flex-col gap-5 border border-zinc-800 bg-zinc-900/30 p-4 rounded-xl">
+              {isInviteOpen && (
+                <div className="flex flex-col gap-5 border border-zinc-800 bg-zinc-900/30 p-4 rounded-xl animate-in fade-in duration-300">
                 {invitations.length === 0 ? (
                   <div className="text-center">
                     <p className="text-xs text-zinc-500 italic mb-3">No tienes códigos generados.</p>
@@ -470,20 +479,34 @@ export default function CoachDashboard() {
                     </div>
                   </>
                 )}
-              </div>
+                </div>
+              )}
             </div>
             <div className="glass-card rounded-2xl p-6 shadow-lg md:col-span-2 flex flex-col gap-6 order-1 md:order-2">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <h2 className="text-lg font-bold text-zinc-100">Mis Alumnos</h2>
-                <input 
-                  type="text" 
-                  placeholder="Buscar por nombre, correo o etiqueta..." 
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="bg-zinc-900 border border-zinc-700 text-sm text-zinc-200 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 w-full sm:w-64"
-                />
+                <div 
+                  className="flex items-center justify-between cursor-pointer sm:cursor-auto"
+                  onClick={() => setIsStudentsOpen(!isStudentsOpen)}
+                >
+                  <h2 className="text-lg font-bold text-zinc-100 flex items-center gap-2">
+                    Mis Alumnos
+                    <span className="text-sm font-normal text-zinc-400 bg-zinc-800 px-2 py-0.5 rounded-full">{students.length}</span>
+                  </h2>
+                  {isStudentsOpen ? <ChevronUp className="text-zinc-400 sm:hidden ml-2" /> : <ChevronDown className="text-zinc-400 sm:hidden ml-2" />}
+                </div>
+                {isStudentsOpen && (
+                  <input 
+                    type="text" 
+                    placeholder="Buscar por nombre, correo o etiqueta..." 
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="bg-zinc-900 border border-zinc-700 text-sm text-zinc-200 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 w-full sm:w-64 transition-all"
+                  />
+                )}
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              
+              {isStudentsOpen && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-in fade-in duration-300">
                 {students.filter(alumno => {
                   const search = searchTerm.toLowerCase();
                   const nameEmailMatch = alumno.usuario.email.toLowerCase().includes(search);
@@ -543,6 +566,7 @@ export default function CoachDashboard() {
                   </div>
                 ))}
               </div>
+              )}
             </div>
           </section>
           )

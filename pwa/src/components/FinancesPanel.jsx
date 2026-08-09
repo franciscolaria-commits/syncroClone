@@ -273,68 +273,73 @@ export default function FinancesPanel({ students, api, loadStudents, modal, prof
         {loading ? (
           <div className="py-12 text-center text-zinc-500">Cargando pagos...</div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm text-zinc-300">
-              <thead className="bg-zinc-900/50 text-xs uppercase text-zinc-500">
-                <tr>
-                  <th className="px-4 py-3 rounded-tl-lg">Alumno</th>
-                  <th className="px-4 py-3">Estado</th>
-                  <th className="px-4 py-3">Monto</th>
-                  <th className="px-4 py-3 text-right rounded-tr-lg">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-800">
-                {filteredPayments.map(p => (
-                  <tr key={p.id_alumno} className="hover:bg-zinc-800/50 transition-colors">
-                    <td className="px-4 py-4 font-medium flex flex-col">
-                      <div className="flex flex-col gap-1">
-                        <span className="font-medium text-zinc-100">{p.nombre_alumno}</span>
-                        <div className="flex flex-wrap items-center gap-2 text-sm">
-                          {p.pagado ? (
-                            <span className="text-emerald-400 flex items-center gap-1">
-                              <CheckCircle className="w-4 h-4" /> Pagado
-                            </span>
-                          ) : (
-                            <span className="text-red-400">Pendiente</span>
-                          )}
-                          
-                          {!p.pagado && p.dias_para_vencer !== null && (
-                            <span className={`text-xs px-2 py-0.5 rounded-full ${
-                              p.dias_para_vencer < 0 ? 'bg-red-500/20 text-red-400' : 
-                              p.dias_para_vencer === 0 ? 'bg-orange-500/20 text-orange-400' : 
-                              p.dias_para_vencer <= 2 ? 'bg-yellow-500/20 text-yellow-400' : 
-                              'bg-zinc-800 text-zinc-400'
-                            }`}>
-                              {p.dias_para_vencer < 0 ? `Vencido hace ${Math.abs(p.dias_para_vencer)} días` : 
-                               p.dias_para_vencer === 0 ? 'Vence hoy' : 
-                               `Vence en ${p.dias_para_vencer} días`}
-                            </span>
-                          )}
-                          
-                          {p.bloqueado_por_pago && (
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-red-600/30 text-red-300 font-bold border border-red-500/50">
-                              BLOQUEADO
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4">
-                      {!p.estado_activo ? (
-                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20">
-                            Suspendido
-                         </span>
-                      ) : p.pagado ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                          <CheckCircle className="w-3.5 h-3.5" /> Pagado
+          <div className="flex flex-col">
+            {/* Cabecera (sólo desktop) */}
+            <div className="hidden md:grid md:grid-cols-[2fr_1fr_1fr_auto] gap-4 px-4 py-3 bg-zinc-900/50 text-xs uppercase text-zinc-500 rounded-t-lg">
+              <div>Alumno</div>
+              <div>Estado</div>
+              <div>Monto</div>
+              <div className="text-right">Acciones</div>
+            </div>
+            
+            <div className="flex flex-col gap-3 md:gap-0 md:divide-y md:divide-zinc-800 mt-2 md:mt-0">
+              {filteredPayments.map(p => (
+                <div key={p.id_alumno} className="flex flex-col md:grid md:grid-cols-[2fr_1fr_1fr_auto] gap-4 p-4 bg-zinc-900/40 md:bg-transparent hover:bg-zinc-800/50 rounded-xl md:rounded-none transition-colors items-start md:items-center border border-zinc-800/50 md:border-none">
+                  {/* Alumno */}
+                  <div className="flex flex-col gap-1 w-full">
+                    <span className="font-medium text-zinc-100">{p.nombre_alumno}</span>
+                    <div className="flex flex-wrap items-center gap-2 text-sm mt-1">
+                      {p.pagado ? (
+                        <span className="text-emerald-400 flex items-center gap-1">
+                          <CheckCircle className="w-4 h-4" /> Pagado
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-orange-500/10 text-orange-400 border border-orange-500/20">
-                           Pendiente
+                        <span className="text-red-400">Pendiente</span>
+                      )}
+                      
+                      {!p.pagado && p.dias_para_vencer !== null && (
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${
+                          p.dias_para_vencer < 0 ? 'bg-red-500/20 text-red-400' : 
+                          p.dias_para_vencer === 0 ? 'bg-orange-500/20 text-orange-400' : 
+                          p.dias_para_vencer <= 2 ? 'bg-yellow-500/20 text-yellow-400' : 
+                          'bg-zinc-800 text-zinc-400'
+                        }`}>
+                          {p.dias_para_vencer < 0 ? `Vencido hace ${Math.abs(p.dias_para_vencer)} días` : 
+                           p.dias_para_vencer === 0 ? 'Vence hoy' : 
+                           `Vence en ${p.dias_para_vencer} días`}
                         </span>
                       )}
-                    </td>
-                    <td className="px-4 py-4 font-medium text-emerald-400 flex items-center gap-2">
+                      
+                      {p.bloqueado_por_pago && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-red-600/30 text-red-300 font-bold border border-red-500/50">
+                          BLOQUEADO
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Estado (móvil: flex-row space-between) */}
+                  <div className="flex items-center justify-between w-full md:w-auto">
+                    <span className="text-zinc-500 text-xs uppercase md:hidden">Estado:</span>
+                    {!p.estado_activo ? (
+                       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20">
+                          Suspendido
+                       </span>
+                    ) : p.pagado ? (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                        <CheckCircle className="w-3.5 h-3.5" /> Pagado
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-orange-500/10 text-orange-400 border border-orange-500/20">
+                         Pendiente
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Monto (móvil: flex-row space-between) */}
+                  <div className="flex items-center justify-between w-full md:w-auto">
+                    <span className="text-zinc-500 text-xs uppercase md:hidden">Monto:</span>
+                    <div className="font-medium text-emerald-400 flex items-center gap-2">
                       {p.pago?.monto ? `$${p.pago.monto}` : (p.pagado ? 'Sí' : '-')}
                       
                       {profile?.config_vencimiento_tipo === "fijo_por_alumno" && (
@@ -346,41 +351,39 @@ export default function FinancesPanel({ students, api, loadStudents, modal, prof
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                         </button>
                       )}
-                    </td>
-                    <td className="px-4 py-4">
-                      <div className="flex flex-wrap items-center justify-end gap-2 mt-4 sm:mt-0">
-                        <button
-                          onClick={() => handleSendWhatsApp(p)}
-                          className="p-2 rounded-lg bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 transition-colors"
-                          title="Enviar WhatsApp de recordatorio"
-                        >
-                          <MessageCircle className="w-5 h-5" />
-                        </button>
-                        {!p.pagado ? (
-                          <button onClick={() => handleMarkPaid(p.id_alumno)} className="p-2 bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600 hover:text-white rounded-lg transition-colors" title="Marcar Pagado">
-                            <DollarSign className="w-4 h-4" />
-                          </button>
-                        ) : (
-                          <button onClick={() => handleRevertPayment(p.pago.id_pago)} className="p-2 bg-zinc-800 text-zinc-500 hover:text-white hover:bg-zinc-700 rounded-lg transition-colors" title="Anular Pago">
-                             Anular
-                          </button>
-                        )}
-                        <button onClick={() => handleToggleSuspend(p.id_alumno, p.estado_activo)} className={`p-2 rounded-lg transition-colors ${p.estado_activo ? 'bg-zinc-800 text-zinc-500 hover:text-red-400 hover:bg-red-500/10' : 'bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/40'}`} title={p.estado_activo ? "Suspender Alumno" : "Reactivar Alumno"}>
-                          {p.estado_activo ? <Ban className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {filteredPayments.length === 0 && (
-                  <tr>
-                    <td colSpan="4" className="px-4 py-8 text-center text-zinc-500 bg-zinc-900/20">
-                      No hay alumnos en esta categoría.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                    </div>
+                  </div>
+
+                  {/* Acciones */}
+                  <div className="flex flex-wrap items-center justify-start md:justify-end gap-2 w-full mt-2 md:mt-0 pt-3 md:pt-0 border-t border-zinc-800/50 md:border-none">
+                    <button
+                      onClick={() => handleSendWhatsApp(p)}
+                      className="p-2 rounded-lg bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 transition-colors"
+                      title="Enviar WhatsApp de recordatorio"
+                    >
+                      <MessageCircle className="w-5 h-5" />
+                    </button>
+                    {!p.pagado ? (
+                      <button onClick={() => handleMarkPaid(p.id_alumno)} className="p-2 bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600 hover:text-white rounded-lg transition-colors" title="Marcar Pagado">
+                        <DollarSign className="w-5 h-5" />
+                      </button>
+                    ) : (
+                      <button onClick={() => handleRevertPayment(p.pago.id_pago)} className="px-3 py-2 text-sm bg-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-700 rounded-lg transition-colors font-medium" title="Anular Pago">
+                         Anular
+                      </button>
+                    )}
+                    <button onClick={() => handleToggleSuspend(p.id_alumno, p.estado_activo)} className={`p-2 rounded-lg transition-colors ml-auto md:ml-0 ${p.estado_activo ? 'bg-zinc-800 text-zinc-500 hover:text-red-400 hover:bg-red-500/10' : 'bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/40'}`} title={p.estado_activo ? "Suspender Alumno" : "Reactivar Alumno"}>
+                      {p.estado_activo ? <Ban className="w-5 h-5" /> : <CheckCircle className="w-5 h-5" />}
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {filteredPayments.length === 0 && (
+                <div className="p-8 text-center text-zinc-500 bg-zinc-900/20 rounded-xl">
+                  No hay alumnos en esta categoría.
+                </div>
+              )}
+            </div>
           </div>
         )}
       </section>
