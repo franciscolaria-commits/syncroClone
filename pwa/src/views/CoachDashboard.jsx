@@ -26,7 +26,6 @@ export default function CoachDashboard() {
   const [loadingAction, setLoadingAction] = useState(null);
   const [assignMenuOpenId, setAssignMenuOpenId] = useState(null);
   const [selectedStudentsForAssign, setSelectedStudentsForAssign] = useState([]);
-  const [formConfigEstado, setFormConfigEstado] = useState(null);
   const modal = useModal();
 
   useEffect(() => {
@@ -919,7 +918,6 @@ export default function CoachDashboard() {
                      <select 
                        name="config_estado_alumno_default" 
                        defaultValue={profile.config_estado_alumno_default || "activo"} 
-                       onChange={(e) => setFormConfigEstado(e.target.value)}
                        className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white outline-none"
                      >
                        <option value="activo">Activo (Puede usar la app al instante)</option>
@@ -937,11 +935,8 @@ export default function CoachDashboard() {
                      >
                        <option value="individual">Individual (30 días desde que paga o se registra)</option>
                        <option value="fijo">Fijo para todos (Un día específico del mes)</option>
-                       <option 
-                         value="fijo_por_alumno" 
-                         disabled={(formConfigEstado || profile.config_estado_alumno_default || "activo") === "activo"}
-                       >
-                         Día distinto por alumno (Requiere suspender alumnos nuevos)
+                       <option value="fijo_por_alumno">
+                         Día distinto por alumno
                        </option>
                      </select>
                    </div>
