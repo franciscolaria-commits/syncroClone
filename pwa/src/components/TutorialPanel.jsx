@@ -54,7 +54,7 @@ export default function TutorialPanel() {
             <div className="p-4 bg-blue-900/10 border border-blue-500/20 rounded-xl flex gap-3">
               <AlertCircle className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
               <p className="text-sm text-zinc-300">
-                <strong className="text-white">¡Importante para alumnos nuevos!</strong> Si tus alumnos recién se descargan la app o entran a la web, recuérdales que deben tocar el botón <span className="bg-blue-600 text-white px-2 py-0.5 rounded text-xs mx-1">Generar código</span> (o ingresar desde tu link mágico) para que queden vinculados directamente a vos en lugar de crearse una cuenta suelta.
+                <strong className="text-white">¡Importante para entrenadores nuevos!</strong> Para poder ver las opciones de registro y vinculación para tus alumnos, primero debes tocar el botón <span className="bg-blue-600 text-white px-2 py-0.5 rounded text-xs mx-1">Generar Mi Enlace</span> en la pestaña de Alumnos.
               </p>
             </div>
 
@@ -144,7 +144,7 @@ export default function TutorialPanel() {
                     <ClipboardList className="w-4 h-4 text-zinc-400" /> Crear una Rutina
                   </h4>
                   <p className="text-sm text-zinc-400">
-                    En el menú superior (o lateral), hace clic en el botón <strong className="text-indigo-400">Crear Rutina</strong>. Podrás ponerle un nombre, seleccionar la dificultad e ir agregando días (Lunes, Martes, Día 1, etc). Dentro de cada día, sumás los bloques de ejercicios. Podés armar superseries usando el botón de "Agregar Ejercicio al Mismo Bloque".
+                    En el menú superior (o lateral), hace clic en el botón <strong className="text-indigo-400">Crear Rutina</strong>. Podrás ponerle nombre a la rutina e ir agregando días y los ejercicios correspondientes en cada día, seleccionar con qué frecuencia realizar la rutina y hasta el descanso entre series.
                   </p>
                 </div>
               </div>
@@ -156,11 +156,10 @@ export default function TutorialPanel() {
                     <CheckCircle className="w-4 h-4 text-zinc-400" /> Asignar al Alumno
                   </h4>
                   <p className="text-sm text-zinc-400">
-                    Una vez creada, podés asignarla de dos formas:
+                    Una vez creada la rutina, podés asignarla a tus alumnos directamente desde la pestaña <strong>Mis Rutinas</strong>.
                   </p>
                   <ul className="list-disc pl-5 mt-2 space-y-1 text-sm text-zinc-400">
-                    <li>Yendo a la pestaña <strong>Alumnos</strong>, tocás sobre el alumno que quieras, bajás hasta la sección "Su Plan Actual" y tocás <strong>Asignar Nueva Rutina</strong>.</li>
-                    <li>Desde la pestaña <strong>Mis Rutinas</strong>, tocás en "Opciones de la rutina" y luego <strong>Asignación Masiva</strong> para dársela a varios alumnos a la vez.</li>
+                    <li>Tocá en "Opciones de la rutina" y luego <strong>Asignación Masiva</strong> para dársela a uno o varios alumnos a la vez.</li>
                   </ul>
                 </div>
               </div>
