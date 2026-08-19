@@ -58,7 +58,8 @@ def create_routine(
                     series_esperadas=ej_data.series_esperadas,
                     reps_esperadas=ej_data.reps_esperadas,
                     descanso_segundos=ej_data.descanso_segundos,
-                    orden=ej_data.orden
+                    orden=ej_data.orden,
+                    nota_entrenador=ej_data.nota_entrenador
                 )
                 db.add(new_ej)
                 
@@ -130,7 +131,8 @@ def update_routine(
                     series_esperadas=ej_data.series_esperadas,
                     reps_esperadas=ej_data.reps_esperadas,
                     descanso_segundos=ej_data.descanso_segundos,
-                    orden=ej_data.orden
+                    orden=ej_data.orden,
+                    nota_entrenador=ej_data.nota_entrenador
                 )
                 db.add(new_ej)
         
@@ -205,7 +207,8 @@ def duplicate_routine(
                     series_esperadas=old_ej.series_esperadas,
                     reps_esperadas=old_ej.reps_esperadas,
                     descanso_segundos=old_ej.descanso_segundos,
-                    orden=old_ej.orden
+                    orden=old_ej.orden,
+                    nota_entrenador=old_ej.nota_entrenador
                 )
                 db.add(new_ej)
 

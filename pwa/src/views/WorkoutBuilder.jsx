@@ -19,7 +19,7 @@ export default function WorkoutBuilder({ initialData, onClose, onSaveSuccess }) 
     exercises: d.ejercicios.map((ex, exIdx) => ({
       localId: ex.id_rutina_ejercicio || `ex-${dIdx}-${exIdx}`,
       id_ejercicio: ex.id_ejercicio,
-      nombre: "Ejercicio (Cargado)", // Idealmente mapeado del catálogo
+      nombre: ex.ejercicio?.nombre || "Ejercicio (Cargado)",
       series_esperadas: ex.series_esperadas,
       reps_esperadas: ex.reps_esperadas,
       descanso_segundos: ex.descanso_segundos || 60,
