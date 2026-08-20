@@ -71,6 +71,8 @@ def get_exercises(
             "categoria": ex.categoria,
             "url_media": omap.get("url_media") if str(ex.id_ejercicio) in override_map and omap.get("url_media") is not None else ex.url_media,
             "url_gif": omap.get("url_gif") if str(ex.id_ejercicio) in override_map and omap.get("url_gif") is not None else ex.url_gif,
+            "es_con_peso": ex.es_con_peso,
+            "tipo_banda": ex.tipo_banda,
             "id_entrenador": ex.id_entrenador
         }
         result.append(ex_dict)
@@ -100,6 +102,8 @@ def create_custom_exercise(
             categoria=exercise_data.categoria,
             url_media=exercise_data.url_media,
             url_gif=exercise_data.url_gif,
+            es_con_peso=exercise_data.es_con_peso if exercise_data.es_con_peso is not None else True,
+            tipo_banda=exercise_data.tipo_banda,
             id_entrenador=current_user.id_usuario
         )
         db.add(nuevo_ejercicio)
@@ -181,6 +185,10 @@ def update_custom_exercise(
         ejercicio.url_media = exercise_data.url_media
     if exercise_data.url_gif is not None:
         ejercicio.url_gif = exercise_data.url_gif
+    if exercise_data.es_con_peso is not None:
+        ejercicio.es_con_peso = exercise_data.es_con_peso
+    if exercise_data.tipo_banda is not None:
+        ejercicio.tipo_banda = exercise_data.tipo_banda
         
     db.commit()
     db.refresh(ejercicio)

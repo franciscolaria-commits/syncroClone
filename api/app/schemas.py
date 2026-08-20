@@ -141,6 +141,8 @@ class EjercicioBase(BaseModel):
     categoria: Optional[str] = "General"
     url_media: Optional[str] = None
     url_gif: Optional[str] = None
+    es_con_peso: Optional[bool] = True
+    tipo_banda: Optional[str] = None
 
 class EjercicioCreate(EjercicioBase):
     pass
@@ -151,6 +153,8 @@ class EjercicioUpdate(BaseModel):
     categoria: Optional[str] = None
     url_media: Optional[str] = None
     url_gif: Optional[str] = None
+    es_con_peso: Optional[bool] = None
+    tipo_banda: Optional[str] = None
 
 class EjercicioOut(EjercicioBase):
     id_ejercicio: UUID

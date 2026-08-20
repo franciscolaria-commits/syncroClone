@@ -9,12 +9,14 @@ import { Menu, X, Copy, Download, ChevronDown, ChevronUp } from "lucide-react";
 
 export default function CoachDashboard() {
   const [activePanel, setActivePanel] = useState('students');
-  const [selectedStudentId, setSelectedStudentId] = useState(null);
+  const [loadingAction, setLoadingAction] = useState(null);
+  const [esConPeso, setEsConPeso] = useState(true);
   const [isBuildingRoutine, setIsBuildingRoutine] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [isStudentsOpen, setIsStudentsOpen] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedStudentId, setSelectedStudentId] = useState(null);
   const [email, setEmail] = useState('');
   const [students, setStudents] = useState([]);
   const [invitations, setInvitations] = useState([]);
@@ -85,6 +87,7 @@ export default function CoachDashboard() {
     const descripcion = e.target.descripcion.value.trim();
     const url_media = e.target.url_media.value.trim();
     const categoria = e.target.categoria.value;
+    const tipo_banda = !esConPeso ? (e.target.tipo_banda.value !== 'ninguna' ? e.target.tipo_banda.value : null) : null;
     const fileInput = e.target.gif_file;
     
     setLoadingAction('create_exercise');
@@ -113,9 +116,13 @@ export default function CoachDashboard() {
         url_gif = presignedRes.public_url;
       }
       
-      await api.post("/api/v1/exercises/custom", { nombre, descripcion, url_media, categoria, url_gif });
+      await api.post("/api/v1/exercises/custom", { 
+        nombre, descripcion, url_media, categoria, url_gif, 
+        es_con_peso: esConPeso, tipo_banda 
+      });
       await modal.alert("Ejercicio creado exitosamente.");
       e.target.reset();
+      setEsConPeso(true);
       loadData();
     } catch (error) {
       await modal.alert(`Error al crear ejercicio: ${error.message}`);
@@ -661,6 +668,21 @@ export default function CoachDashboard() {
                   <label className="text-xs text-zinc-400 font-bold">Subir GIF Demostrativo (Opcional)</label>
                   <input type="file" name="gif_file" accept="image/gif" className="text-xs text-zinc-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-500 w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2" />
                 </div>
+
+                <div className="flex items-center gap-2 mt-2">
+                  <input type="checkbox" id="es_con_peso" checked={esConPeso} onChange={(e) => setEsConPeso(e.target.checked)} className="w-4 h-4 text-emerald-600 bg-zinc-900 border-zinc-700 rounded focus:ring-emerald-500" />
+                  <label htmlFor="es_con_peso" className="text-sm text-zinc-200">Ejercicio con peso libre/máquina</label>
+                </div>
+                
+                {!esConPeso && (
+                  <select name="tipo_banda" className="w-full bg-zinc-950 border border-emerald-800/50 rounded-lg px-4 py-2 text-sm text-emerald-100 outline-none mt-1">
+                    <option value="ninguna">Sin banda (solo peso corporal)</option>
+                    <option value="liviana">Requiere Banda Liviana</option>
+                    <option value="media">Requiere Banda Media</option>
+                    <option value="fuerte">Requiere Banda Fuerte</option>
+                  </select>
+                )}
+
                 <button type="submit" disabled={loadingAction === 'create_exercise'} className="w-full py-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 font-bold text-xs uppercase tracking-widest text-white transition-all disabled:opacity-50">
                   {loadingAction === 'create_exercise' ? 'Procesando...' : 'Añadir al Catálogo'}
                 </button>
@@ -677,9 +699,14 @@ export default function CoachDashboard() {
                    )}
                    <div className="flex gap-4 w-full">
                       <div className="pr-4 flex-1">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <h3 className="text-sm font-semibold text-zinc-200">{exe.nombre}</h3>
                           <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px] font-bold uppercase">{exe.categoria || 'General'}</span>
+                          {!exe.es_con_peso && (
+                            <span className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 text-[10px] font-bold uppercase border border-blue-500/20">
+                              {exe.tipo_banda ? `BANDA ${exe.tipo_banda}` : 'SIN PESO'}
+                            </span>
+                          )}
                         </div>
                        <p className="text-xs text-zinc-400 mt-1 leading-relaxed line-clamp-2">{exe.descripcion}</p>
                      </div>

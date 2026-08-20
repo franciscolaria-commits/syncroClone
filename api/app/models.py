@@ -99,6 +99,8 @@ class Ejercicio(Base):
     categoria = Column(String, default="General") # Pecho, Espalda, Piernas, etc.
     url_media = Column(String) # URL de YouTube o similar (opcional)
     url_gif = Column(String) # URL del GIF demostrativo en Cloudflare R2
+    es_con_peso = Column(Boolean, default=True) # Indica si lleva peso
+    tipo_banda = Column(String, nullable=True) # "liviana", "media", "fuerte" o null
     # Si es null, es un ejercicio global del sistema. Si tiene UUID, es custom del entrenador.
     id_entrenador = Column(UUID(as_uuid=True), ForeignKey("entrenadores.id_usuario"), nullable=True)
 

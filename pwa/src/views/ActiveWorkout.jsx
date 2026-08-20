@@ -12,10 +12,9 @@ const getYouTubeEmbedUrl = (url) => {
   return match ? `https://www.youtube.com/embed/${match[1]}?autoplay=1&mute=1&loop=1&playlist=${match[1]}` : url;
 };
 
-export default function ActiveWorkout({ routine, onComplete, onCancel }) {
+export default function ActiveWorkout({ routine, initialDayIdx, onComplete, onCancel }) {
   const queryClient = useQueryClient();
-  const storedDay = parseInt(localStorage.getItem(`last_day_${routine.id_rutina}`) || '0');
-  const [currentDayIdx, setCurrentDayIdx] = useState(storedDay % routine.dias.length);
+  const [currentDayIdx, setCurrentDayIdx] = useState(initialDayIdx !== undefined ? initialDayIdx : 0);
   const [sets, setSets] = useState([]);
   const [restTime, setRestTime] = useState(0);
   const [isResting, setIsResting] = useState(false);
@@ -139,6 +138,11 @@ export default function ActiveWorkout({ routine, onComplete, onCancel }) {
               <div className="text-right">
                 <p className="text-sm font-bold text-zinc-300">{ex.series_esperadas} x {ex.reps_esperadas}</p>
                 <p className="text-xs text-zinc-500">{ex.descanso_segundos || 60}s descanso</p>
+                {ex.ejercicio?.es_con_peso === false && (
+                  <p className="text-[10px] font-bold text-blue-400 bg-blue-500/10 px-2 py-1 rounded inline-block mt-1 uppercase border border-blue-500/20">
+                    {ex.ejercicio.tipo_banda ? `BANDA ${ex.ejercicio.tipo_banda}` : 'SIN PESO'}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -153,10 +157,12 @@ export default function ActiveWorkout({ routine, onComplete, onCancel }) {
             )}
             
             <div className="flex gap-3 items-center mt-2">
-              <div className="flex-1">
-                <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1 block mb-1">Peso (kg)</label>
-                <input type="number" className="w-full bg-zinc-950 border border-zinc-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl p-3 text-white transition-all" id={`peso-${ex.id_rutina_ejercicio}`} />
-              </div>
+              {ex.ejercicio?.es_con_peso !== false && (
+                <div className="flex-1">
+                  <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1 block mb-1">Peso (kg)</label>
+                  <input type="number" className="w-full bg-zinc-950 border border-zinc-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl p-3 text-white transition-all" id={`peso-${ex.id_rutina_ejercicio}`} />
+                </div>
+              )}
               <div className="flex-1">
                 <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1 block mb-1">Reps</label>
                 <input type="number" defaultValue={ex.reps_esperadas} className="w-full bg-zinc-950 border border-zinc-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl p-3 text-white transition-all" id={`reps-${ex.id_rutina_ejercicio}`} />
@@ -164,20 +170,24 @@ export default function ActiveWorkout({ routine, onComplete, onCancel }) {
               <div className="mt-5">
                 <button 
                   onClick={async () => {
-                    const peso = document.getElementById(`peso-${ex.id_rutina_ejercicio}`).value;
+                    const isConPeso = ex.ejercicio?.es_con_peso !== false;
+                    const pesoInput = document.getElementById(`peso-${ex.id_rutina_ejercicio}`);
+                    const peso = isConPeso ? pesoInput?.value : '0';
                     const reps = document.getElementById(`reps-${ex.id_rutina_ejercicio}`).value;
-                    if(!peso || !reps) return;
                     
-                    if(parseFloat(peso) > 400) {
+                    if(isConPeso && !peso) return;
+                    if(!reps) return;
+                    
+                    if(isConPeso && parseFloat(peso) > 400) {
                       await modal.alert("Peso inválido. Máximo permitido: 400 kg");
                       return;
                     }
-                    if(parseFloat(peso) < 0 || parseInt(reps) <= 0) {
+                    if((isConPeso && parseFloat(peso) < 0) || parseInt(reps) <= 0) {
                       await modal.alert("Los valores deben ser positivos.");
                       return;
                     }
                     
-                    setSets([...sets, { id_rutina_ejercicio: ex.id_rutina_ejercicio, peso_usado: parseFloat(peso), reps_logradas: parseInt(reps) }]);
+                    setSets([...sets, { id_rutina_ejercicio: ex.id_rutina_ejercicio, peso_usado: isConPeso ? parseFloat(peso) : 0, reps_logradas: parseInt(reps) }]);
                     startRest(ex.descanso_segundos || 60);
                   }}
                   className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-emerald-500/20 transition-all h-full"

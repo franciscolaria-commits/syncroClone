@@ -15,6 +15,7 @@ export default function StudentDashboard() {
   const [activeTab, setActiveTab] = useState('home'); // home, routine, league, history
   const [isWorkingOut, setIsWorkingOut] = useState(false);
   const [demoExercise, setDemoExercise] = useState(null);
+  const [selectedDayIdx, setSelectedDayIdx] = useState(null);
   
   const [phoneInput, setPhoneInput] = useState('');
   const [isUpdatingPhone, setIsUpdatingPhone] = useState(false);
@@ -172,15 +173,36 @@ export default function StudentDashboard() {
               </div>
 
               <div className="mt-12 md:mt-24">
-                {routine && (
-                  <button 
-                    onClick={() => setIsWorkingOut(true)}
-                    className="w-full bg-emerald-500 text-zinc-950 font-black text-xl md:text-3xl uppercase tracking-tighter py-6 md:py-8 hover:bg-emerald-400 transition-all border-4 border-emerald-500 hover:border-white flex justify-between items-center px-6 md:px-10"
-                  >
-                    <span>ENTRENAR</span>
-                    <span className="text-4xl md:text-5xl">→</span>
-                  </button>
-                )}
+                {routine && (() => {
+                  const storedDay = parseInt(localStorage.getItem(`last_day_${routine.id_rutina}`) || '0') % (routine.dias?.length || 1);
+                  const activeIdx = selectedDayIdx !== null ? selectedDayIdx : storedDay;
+                  
+                  return (
+                    <div className="flex flex-col gap-3">
+                      <div className="bg-zinc-950/80 border border-emerald-500/30 p-4 rounded-xl">
+                        <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-2 block">Día de Entrenamiento</label>
+                        <select 
+                          value={activeIdx}
+                          onChange={(e) => setSelectedDayIdx(parseInt(e.target.value))}
+                          className="w-full bg-zinc-900 border border-zinc-700 text-white font-bold rounded-lg px-4 py-3 outline-none focus:border-emerald-500 transition-colors"
+                        >
+                          {routine.dias?.map((dia, idx) => (
+                            <option key={dia.id_dia} value={idx}>
+                              Día {dia.orden}: {dia.nombre_dia} {idx === storedDay ? '(Sugerido)' : ''}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <button 
+                        onClick={() => setIsWorkingOut(true)}
+                        className="w-full bg-emerald-500 text-zinc-950 font-black text-xl md:text-3xl uppercase tracking-tighter py-6 md:py-8 hover:bg-emerald-400 transition-all border-4 border-emerald-500 hover:border-white flex justify-between items-center px-6 md:px-10 mt-2 rounded-xl"
+                      >
+                        <span>ENTRENAR</span>
+                        <span className="text-4xl md:text-5xl">→</span>
+                      </button>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
 
@@ -331,11 +353,17 @@ export default function StudentDashboard() {
       )}
 
       {isWorkingOut && routine && (
-        <ActiveWorkout 
-          routine={routine} 
-          onComplete={() => setIsWorkingOut(false)} 
-          onCancel={() => setIsWorkingOut(false)} 
-        />
+        <div className="fixed inset-0 z-50 bg-zinc-950 overflow-y-auto">
+          <ActiveWorkout 
+            routine={routine} 
+            initialDayIdx={selectedDayIdx !== null ? selectedDayIdx : parseInt(localStorage.getItem(`last_day_${routine.id_rutina}`) || '0') % (routine.dias?.length || 1)}
+            onComplete={() => {
+              setIsWorkingOut(false);
+              queryClient.invalidateQueries(['studentStats']);
+            }} 
+            onCancel={() => setIsWorkingOut(false)} 
+          />
+        </div>
       )}
     </div>
   );
