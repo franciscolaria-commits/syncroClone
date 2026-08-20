@@ -1,47 +1,36 @@
 import os
-import sys
-from dotenv import load_dotenv
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+import urllib.parse
 
-# Setup database directly
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'api')))
-load_dotenv(os.path.join(os.path.dirname(__file__), 'api', '.env'))
+# Original url
+url = "postgresql://postgres.azmrfutepbneyaxgmaye:k3?_QdN2cAq%VW.@aws-1-us-west-2.pooler.supabase.com:5432/postgres"
 
-DB_URL = os.getenv("DIRECT_URL")
-if not DB_URL:
-    print("No DIRECT_URL found.")
-    sys.exit(1)
+print("Testing original URL...")
+try:
+    engine = create_engine(url)
+    with engine.connect() as conn:
+        print("Success original!")
+except Exception as e:
+    print(f"Error original: {e}")
 
-engine = create_engine(DB_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# URL encoded password
+password = urllib.parse.quote_plus("k3?_QdN2cAq%VW.")
+url_encoded = f"postgresql://postgres.azmrfutepbneyaxgmaye:{password}@aws-1-us-west-2.pooler.supabase.com:5432/postgres"
 
-from app import models
+print("\nTesting URL encoded password...")
+try:
+    engine = create_engine(url_encoded)
+    with engine.connect() as conn:
+        print("Success encoded!")
+except Exception as e:
+    print(f"Error encoded: {e}")
 
-def test():
-    db = SessionLocal()
-    try:
-        # Check students
-        alumnos = db.query(models.Alumno).filter(models.Alumno.id_rutina_activa != None).all()
-        print(f"Total students with a routine assigned: {len(alumnos)}")
-        for al in alumnos:
-            print(f"Student {al.id_usuario} has id_rutina_activa={al.id_rutina_activa}")
-            rutina = db.query(models.Rutina).filter(models.Rutina.id_rutina == al.id_rutina_activa).first()
-            if rutina:
-                print(f"  -> Routine exists: {rutina.nombre_rutina}, is_active={rutina.is_active}")
-                
-                # Check for loop
-                for dia in rutina.dias:
-                    for ex in dia.ejercicios:
-                        if ex.ejercicio and not ex.ejercicio.id_entrenador:
-                            override = db.query(models.EjercicioMediaCoach).filter(
-                                models.EjercicioMediaCoach.id_ejercicio == ex.id_ejercicio,
-                                models.EjercicioMediaCoach.id_entrenador == al.id_entrenador
-                            ).first()
-            else:
-                print("  -> ERROR: Routine DOES NOT EXIST in rutinas table!")
-    finally:
-        db.close()
-
-if __name__ == "__main__":
-    test()
+# Test port 6543
+url_6543 = f"postgresql://postgres.azmrfutepbneyaxgmaye:{password}@aws-1-us-west-2.pooler.supabase.com:6543/postgres?pgbouncer=true"
+print("\nTesting URL encoded password with port 6543...")
+try:
+    engine = create_engine(url_6543)
+    with engine.connect() as conn:
+        print("Success 6543!")
+except Exception as e:
+    print(f"Error 6543: {e}")

@@ -128,7 +128,7 @@ class AlumnoOut(AlumnoBase):
         from_attributes = True
 
 class UpdatePaymentDate(BaseModel):
-    dia_vencimiento_personalizado: int
+    dia_vencimiento_personalizado: Optional[int] = None
 
 
 # ==========================================
