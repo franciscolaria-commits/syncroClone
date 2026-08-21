@@ -225,8 +225,8 @@ export default function SuperAdminPanel() {
                               <label className="text-[10px] text-gray-400 block mb-1">Finaliza el (opcional):</label>
                               <input 
                                 type="date"
-                                value={coach.fecha_fin_prueba ? coach.fecha_fin_prueba.split("T")[0] : ""}
-                                onChange={(e) => {
+                                defaultValue={coach.fecha_fin_prueba ? coach.fecha_fin_prueba.split("T")[0] : ""}
+                                onBlur={(e) => {
                                   const val = e.target.value;
                                   if (val !== undefined) {
                                       try {
