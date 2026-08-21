@@ -9,7 +9,6 @@ import { Menu, X, Copy, Download, ChevronDown, ChevronUp } from "lucide-react";
 
 export default function CoachDashboard() {
   const [activePanel, setActivePanel] = useState('students');
-  const [loadingAction, setLoadingAction] = useState(null);
   const [esConPeso, setEsConPeso] = useState(true);
   const [isBuildingRoutine, setIsBuildingRoutine] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
