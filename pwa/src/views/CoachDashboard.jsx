@@ -701,7 +701,7 @@ export default function CoachDashboard() {
                         <div className="flex items-center gap-2 flex-wrap">
                           <h3 className="text-sm font-semibold text-zinc-200">{exe.nombre}</h3>
                           <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px] font-bold uppercase">{exe.categoria || 'General'}</span>
-                          {!exe.es_con_peso && (
+                          {exe.es_con_peso === false && (
                             <span className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 text-[10px] font-bold uppercase border border-blue-500/20">
                               {exe.tipo_banda ? `BANDA ${exe.tipo_banda}` : 'SIN PESO'}
                             </span>
