@@ -1,11 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import AuthView from './views/AuthView.jsx';
-import LandingPage from './views/LandingPage.jsx';
-import CoachDashboard from './views/CoachDashboard.jsx';
-import StudentDashboard from './views/StudentDashboard.jsx';
-import BlockedView from './views/BlockedView.jsx';
-import SuperAdminPanel from './views/SuperAdminPanel.jsx';
+const AuthView = React.lazy(() => import('./views/AuthView.jsx'));
+const LandingPage = React.lazy(() => import('./views/LandingPage.jsx'));
+const CoachDashboard = React.lazy(() => import('./views/CoachDashboard.jsx'));
+const StudentDashboard = React.lazy(() => import('./views/StudentDashboard.jsx'));
+const BlockedView = React.lazy(() => import('./views/BlockedView.jsx'));
+const SuperAdminPanel = React.lazy(() => import('./views/SuperAdminPanel.jsx'));
 import WeightGuardian from './components/WeightGuardian.jsx';
+
+const LoadingScreen = () => (
+  <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-4">
+    <div className="w-16 h-16 border-4 border-zinc-800 border-t-emerald-500 rounded-full animate-spin mb-4"></div>
+    <p className="text-zinc-400 font-bold uppercase tracking-widest text-sm animate-pulse">Cargando Syncro...</p>
+  </div>
+);
+
 import { initOfflineSync } from './services/offlineSync.js';
 import './index.css';
 
@@ -31,22 +39,22 @@ export default function App() {
   const path = window.location.pathname;
 
   if (path === '/blocked') {
-    return <BlockedView />;
+    return <React.Suspense fallback={<LoadingScreen />}><BlockedView /></React.Suspense>;
   }
 
   if (path === '/admin-secreto') {
     if (!session || session.rol !== 'superadmin') {
-      return <AuthView onLoginSuccess={checkSession} />;
+      return <React.Suspense fallback={<LoadingScreen />}><AuthView onLoginSuccess={checkSession} /></React.Suspense>;
     }
-    return <SuperAdminPanel />;
+    return <React.Suspense fallback={<LoadingScreen />}><SuperAdminPanel /></React.Suspense>;
   }
 
   if (!session) {
     if (path === '/login') {
-      return <AuthView onLoginSuccess={checkSession} />;
+      return <React.Suspense fallback={<LoadingScreen />}><AuthView onLoginSuccess={checkSession} /></React.Suspense>;
     }
     // Por defecto, visitantes no autenticados ven la Landing B2B
-    return <LandingPage />;
+    return <React.Suspense fallback={<LoadingScreen />}><LandingPage /></React.Suspense>;
   }
 
   // == Si hay sesión, ignoramos la Landing y resolvemos vistas ==
@@ -57,20 +65,22 @@ export default function App() {
   }
 
   if (session.rol === 'superadmin') {
-    return <SuperAdminPanel />;
+    return <React.Suspense fallback={<LoadingScreen />}><SuperAdminPanel /></React.Suspense>;
   }
 
   // Si es entrenador, retornamos directamente
   if (session.rol === 'entrenador') {
-    return <CoachDashboard />;
+    return <React.Suspense fallback={<LoadingScreen />}><CoachDashboard /></React.Suspense>;
   }
 
   // Si es alumno, envolvemos en el Guardián de Peso
   if (session.rol === 'alumno') {
     return (
-      <WeightGuardian user={session}>
-        <StudentDashboard />
-      </WeightGuardian>
+      <React.Suspense fallback={<LoadingScreen />}>
+        <WeightGuardian user={session}>
+          <StudentDashboard />
+        </WeightGuardian>
+      </React.Suspense>
     );
   }
 
