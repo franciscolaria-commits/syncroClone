@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+﻿from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List
@@ -72,6 +72,8 @@ def get_all_coaches(
             "modelo_pago": e.modelo_pago,
             "monto_fijo": e.monto_fijo,
             "fecha_vencimiento": e.fecha_vencimiento,
+            "en_periodo_prueba": e.en_periodo_prueba,
+            "fecha_fin_prueba": e.fecha_fin_prueba,
             "total_alumnos": total_alumnos,
             "deuda_estimada_mes": deuda,
             "pago_mes_registrado": pago_mes is not None
@@ -86,7 +88,7 @@ def update_coach_financial(
     admin: models.Usuario = Depends(get_superadmin)
 ):
     """
-    Actualiza los límites y estados financieros de un entrenador específico.
+    Actualiza los lÃ­mites y estados financieros de un entrenador especÃ­fico.
     """
     entrenador = db.query(models.Entrenador).filter(models.Entrenador.id_usuario == coach_id).first()
     if not entrenador:
@@ -104,6 +106,10 @@ def update_coach_financial(
         entrenador.monto_fijo = update_data.monto_fijo
     if update_data.estado_activo is not None:
         entrenador.estado_activo = update_data.estado_activo
+    if update_data.en_periodo_prueba is not None:
+        entrenador.en_periodo_prueba = update_data.en_periodo_prueba
+    if update_data.fecha_fin_prueba is not None:
+        entrenador.fecha_fin_prueba = update_data.fecha_fin_prueba
         
     db.commit()
     db.refresh(entrenador)
@@ -142,6 +148,8 @@ def update_coach_financial(
         "modelo_pago": entrenador.modelo_pago,
         "monto_fijo": entrenador.monto_fijo,
         "fecha_vencimiento": entrenador.fecha_vencimiento,
+        "en_periodo_prueba": entrenador.en_periodo_prueba,
+        "fecha_fin_prueba": entrenador.fecha_fin_prueba,
         "total_alumnos": total_alumnos,
         "deuda_estimada_mes": deuda,
         "pago_mes_registrado": pago_mes is not None
@@ -231,7 +239,7 @@ def get_finances(
     ingreso_real = db.query(func.sum(models.PagoEntrenador.monto)).filter(models.PagoEntrenador.anio_mes == current_anio_mes).scalar() or 0.0
     deuda_pendiente = ingreso_esperado - ingreso_real
     
-    # Historial de últimos 6 meses para gráfico
+    # Historial de Ãºltimos 6 meses para grÃ¡fico
     historial = []
     meses_anteriores = db.query(models.PagoEntrenador.anio_mes, func.sum(models.PagoEntrenador.monto).label('total'))\
         .group_by(models.PagoEntrenador.anio_mes)\
@@ -254,3 +262,4 @@ def get_finances(
         },
         "chart_data": historial
     }
+

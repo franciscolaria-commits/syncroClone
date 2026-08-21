@@ -1,4 +1,4 @@
-import uuid
+﻿import uuid
 from datetime import datetime
 from sqlalchemy import Column, String, Boolean, Integer, ForeignKey, DateTime, Float
 from sqlalchemy.dialects.postgresql import UUID
@@ -21,17 +21,19 @@ class Entrenador(Base):
     especialidad = Column(String)
     biografia = Column(String)
     anios_experiencia = Column(Integer)
-    url_foto_perfil = Column(String) # Se alojará en Cloudflare R2
+    url_foto_perfil = Column(String) # Se alojarÃ¡ en Cloudflare R2
     limite_alumnos = Column(Integer, default=10, nullable=False)
     fecha_vencimiento = Column(DateTime, nullable=True)
     estado_financiero = Column(String, default="activo", nullable=False) # 'activo', 'suspendido'
+    en_periodo_prueba = Column(Boolean, default=False, nullable=False)
+    fecha_fin_prueba = Column(DateTime, nullable=True)
     estado_activo = Column(Boolean, default=True, nullable=False, index=True) # Soft delete
     modelo_pago = Column(String, default="por_alumno", nullable=False) # 'fijo', 'por_alumno'
     monto_fijo = Column(Float, nullable=True)
     tipo_cobro_alumnos = Column(String, nullable=True) # 'fijo' o 'por_clase' etc.
     precio_cobro_alumnos = Column(Float, nullable=True)
     
-    # Configuración de gestión y pagos
+    # ConfiguraciÃ³n de gestiÃ³n y pagos
     config_estado_alumno_default = Column(String, default="activo", nullable=False) # 'activo' o 'suspendido'
     config_vencimiento_tipo = Column(String, default="individual", nullable=False) # 'fijo' o 'individual'
     config_vencimiento_dia = Column(Integer, nullable=True) # 1-31

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { api, logout } from "../services/api";
 import { LogOut, Users, Settings, Activity, DollarSign, BarChart2, Trash2, CheckCircle, XCircle } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
@@ -52,7 +52,7 @@ export default function SuperAdminPanel() {
   };
 
   const deleteCoach = async (coachId) => {
-    if (!window.confirm("¿Estás seguro de que deseas borrar (soft-delete) a este entrenador? Sus alumnos quedarán inaccesibles.")) return;
+    if (!window.confirm("Â¿EstÃ¡s seguro de que deseas borrar (soft-delete) a este entrenador? Sus alumnos quedarÃ¡n inaccesibles.")) return;
     try {
       await api.delete(`/api/v1/admin/coaches/${coachId}`);
       setCoaches(coaches.filter(c => c.id_usuario !== coachId));
@@ -136,7 +136,7 @@ export default function SuperAdminPanel() {
             <div className="p-6 border-b border-gray-700 flex justify-between items-center">
               <h2 className="text-lg font-medium text-white flex items-center gap-2">
                 <Users className="w-5 h-5 text-emerald-500" />
-                Gestión de Entrenadores B2B
+                GestiÃ³n de Entrenadores B2B
               </h2>
             </div>
             <div className="overflow-x-auto">
@@ -155,7 +155,18 @@ export default function SuperAdminPanel() {
                     <tr key={coach.id_usuario} className="hover:bg-gray-750">
                       <td className="px-4 py-4">
                         <div className="font-medium text-white">{coach.email}</div>
-                        <div className="text-xs text-gray-500">{coach.nombre || "Sin nombre"} • {coach.total_alumnos}/{coach.limite_alumnos} Alumnos</div>
+                        <div className="text-xs text-gray-500 mb-1">{coach.nombre || "Sin nombre"} • {coach.total_alumnos}/{coach.limite_alumnos} Alumnos</div>
+                        {(() => {
+                           if (!coach.en_periodo_prueba) return null;
+                           if (!coach.fecha_fin_prueba) return <div className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-blue-500/10 text-blue-400">Prueba Activa</div>;
+                           
+                           const diffTime = new Date(coach.fecha_fin_prueba) - new Date();
+                           const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                           
+                           if (diffDays > 0) return <div className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-blue-500/10 text-blue-400">Prueba: Quedan {diffDays} días</div>;
+                           if (diffDays === 0) return <div className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-orange-500/10 text-orange-400">Prueba: Vence Hoy</div>;
+                           return <div className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-red-500/10 text-red-400">Prueba: Vencida ({Math.abs(diffDays)}d)</div>;
+                        })()}
                       </td>
                       <td className="px-4 py-4">
                         <div className="flex flex-col gap-2 items-center">
@@ -190,15 +201,37 @@ export default function SuperAdminPanel() {
                         <select
                           value={coach.estado_financiero}
                           onChange={(e) => updateCoach(coach.id_usuario, { estado_financiero: e.target.value })}
-                          className={`bg-gray-900 border text-xs rounded block w-full p-1.5 ${
-                            coach.estado_financiero === 'activo' 
-                              ? 'border-emerald-500/30 text-emerald-400' 
-                              : 'border-red-500/30 text-red-400'
+                          className={`bg-gray-900 border text-xs rounded block w-full p-1.5 mb-2 ${
+                            coach.estado_financiero === "activo" 
+                              ? "border-emerald-500/30 text-emerald-400" 
+                              : "border-red-500/30 text-red-400"
                           }`}
                         >
                           <option value="activo">Activo</option>
                           <option value="suspendido">Suspendido</option>
                         </select>
+                        <div className="flex flex-col gap-1 items-start bg-gray-900/50 p-2 rounded border border-gray-700">
+                          <label className="flex items-center gap-2 text-[11px] text-gray-300 cursor-pointer w-full text-left">
+                            <input 
+                              type="checkbox" 
+                              checked={coach.en_periodo_prueba || false}
+                              onChange={(e) => updateCoach(coach.id_usuario, { en_periodo_prueba: e.target.checked })}
+                              className="rounded border-gray-600 bg-gray-800 text-emerald-500 focus:ring-emerald-500 w-3 h-3"
+                            />
+                            Periodo Prueba
+                          </label>
+                          {coach.en_periodo_prueba && (
+                            <input 
+                              type="date"
+                              value={coach.fecha_fin_prueba ? coach.fecha_fin_prueba.split("T")[0] : ""}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                updateCoach(coach.id_usuario, { fecha_fin_prueba: val ? new Date(val).toISOString() : null });
+                              }}
+                              className="w-full bg-gray-800 border border-gray-600 text-[10px] rounded p-1 text-gray-300 focus:border-emerald-500 mt-1"
+                            />
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-4">
                         <div className="flex justify-center gap-2">
@@ -279,7 +312,7 @@ export default function SuperAdminPanel() {
                 </ResponsiveContainer>
               </div>
               {finances.chart_data.length === 0 && (
-                <div className="text-center text-gray-500 mt-4">No hay datos históricos suficientes.</div>
+                <div className="text-center text-gray-500 mt-4">No hay datos histÃ³ricos suficientes.</div>
               )}
             </div>
           </div>
@@ -321,7 +354,7 @@ export default function SuperAdminPanel() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-400 mb-1">Método de Pago</label>
+                  <label className="block text-xs font-semibold text-gray-400 mb-1">MÃ©todo de Pago</label>
                   <select
                     value={payMethod}
                     onChange={(e) => setPayMethod(e.target.value)}
@@ -367,3 +400,5 @@ export default function SuperAdminPanel() {
     </div>
   );
 }
+
+

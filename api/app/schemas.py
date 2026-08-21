@@ -328,6 +328,8 @@ class CoachAdminOut(BaseModel):
     modelo_pago: str
     monto_fijo: Optional[float] = None
     fecha_vencimiento: Optional[datetime] = None
+    en_periodo_prueba: bool = False
+    fecha_fin_prueba: Optional[datetime] = None
     total_alumnos: int
     deuda_estimada_mes: float = 0.0
     pago_mes_registrado: bool = False
@@ -339,6 +341,8 @@ class CoachAdminUpdate(BaseModel):
     modelo_pago: Optional[str] = None
     monto_fijo: Optional[float] = None
     fecha_vencimiento: Optional[datetime] = None
+    en_periodo_prueba: Optional[bool] = None
+    fecha_fin_prueba: Optional[datetime] = None
 
 class PagoEntrenadorCreate(BaseModel):
     monto: float
