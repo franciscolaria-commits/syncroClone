@@ -1,0 +1,28 @@
+From c75c473c586f7438e4da2d32b2aafbb1c3b6d778 Mon Sep 17 00:00:00 2001
+From: franciscolaria-commits <francisco.laria.1234@gmail.com>
+Date: Fri, 21 Aug 2026 18:27:38 -0300
+Subject: [PATCH 3/3] fix: Change date input onChange to onBlur to prevent
+ losing focus during typing
+
+---
+ pwa/src/views/SuperAdminPanel.jsx | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/pwa/src/views/SuperAdminPanel.jsx b/pwa/src/views/SuperAdminPanel.jsx
+index 58586df..647ace0 100644
+--- a/pwa/src/views/SuperAdminPanel.jsx
++++ b/pwa/src/views/SuperAdminPanel.jsx
+@@ -225,8 +225,8 @@ export default function SuperAdminPanel() {
+                               <label className="text-[10px] text-gray-400 block mb-1">Finaliza el (opcional):</label>
+                               <input 
+                                 type="date"
+-                                value={coach.fecha_fin_prueba ? coach.fecha_fin_prueba.split("T")[0] : ""}
+-                                onChange={(e) => {
++                                defaultValue={coach.fecha_fin_prueba ? coach.fecha_fin_prueba.split("T")[0] : ""}
++                                onBlur={(e) => {
+                                   const val = e.target.value;
+                                   if (val !== undefined) {
+                                       try {
+-- 
+2.52.0.windows.1
+

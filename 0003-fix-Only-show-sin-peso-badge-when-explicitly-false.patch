@@ -1,0 +1,25 @@
+From 40573cc9186070f6ff480f021cd3e31739ef35d5 Mon Sep 17 00:00:00 2001
+From: franciscolaria-commits <francisco.laria.1234@gmail.com>
+Date: Fri, 21 Aug 2026 14:36:11 -0300
+Subject: [PATCH 3/3] fix: Only show sin peso badge when explicitly false
+
+---
+ pwa/src/views/CoachDashboard.jsx | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/pwa/src/views/CoachDashboard.jsx b/pwa/src/views/CoachDashboard.jsx
+index 5a483db..58a6d31 100644
+--- a/pwa/src/views/CoachDashboard.jsx
++++ b/pwa/src/views/CoachDashboard.jsx
+@@ -701,7 +701,7 @@ export default function CoachDashboard() {
+                         <div className="flex items-center gap-2 flex-wrap">
+                           <h3 className="text-sm font-semibold text-zinc-200">{exe.nombre}</h3>
+                           <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px] font-bold uppercase">{exe.categoria || 'General'}</span>
+-                          {!exe.es_con_peso && (
++                          {exe.es_con_peso === false && (
+                             <span className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 text-[10px] font-bold uppercase border border-blue-500/20">
+                               {exe.tipo_banda ? `BANDA ${exe.tipo_banda}` : 'SIN PESO'}
+                             </span>
+-- 
+2.52.0.windows.1
+

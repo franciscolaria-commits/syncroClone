@@ -21,7 +21,7 @@ class Entrenador(Base):
     especialidad = Column(String)
     biografia = Column(String)
     anios_experiencia = Column(Integer)
-    url_foto_perfil = Column(String) # Se alojarÃ¡ en Cloudflare R2
+    url_foto_perfil = Column(String) # Se alojarÃƒÂ¡ en Cloudflare R2
     limite_alumnos = Column(Integer, default=10, nullable=False)
     fecha_vencimiento = Column(DateTime, nullable=True)
     estado_financiero = Column(String, default="activo", nullable=False) # 'activo', 'suspendido'
@@ -33,7 +33,7 @@ class Entrenador(Base):
     tipo_cobro_alumnos = Column(String, nullable=True) # 'fijo' o 'por_clase' etc.
     precio_cobro_alumnos = Column(Float, nullable=True)
     
-    # ConfiguraciÃ³n de gestiÃ³n y pagos
+    # ConfiguraciÃƒÂ³n de gestiÃƒÂ³n y pagos
     config_estado_alumno_default = Column(String, default="activo", nullable=False) # 'activo' o 'suspendido'
     config_vencimiento_tipo = Column(String, default="individual", nullable=False) # 'fijo' o 'individual'
     config_vencimiento_dia = Column(Integer, nullable=True) # 1-31
@@ -70,6 +70,10 @@ class Alumno(Base):
     bloqueado_por_pago = Column(Boolean, default=False, nullable=False)
     recordatorio_enviado_2_dias = Column(Boolean, default=False, nullable=False)
     recordatorio_enviado_hoy = Column(Boolean, default=False, nullable=False)
+    
+    # Recordatorios de Evaluaciones
+    frecuencia_evaluacion_dias = Column(Integer, nullable=True)
+    ultima_evaluacion_fecha = Column(DateTime, nullable=True)
     
     usuario = relationship("Usuario")
     entrenador = relationship("Entrenador")
@@ -206,3 +210,80 @@ class PagoAlumno(Base):
     alumno = relationship("Alumno")
     entrenador = relationship("Entrenador")
 
+
+class EvaluacionFisica(Base):
+    __tablename__ = "evaluaciones_fisicas"
+    id_evaluacion = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id_alumno = Column(UUID(as_uuid=True), ForeignKey("alumnos.id_usuario"), nullable=False, index=True)
+    fecha = Column(DateTime, default=datetime.utcnow, nullable=False)
+    
+    cuadriceps_d = Column(Float, nullable=True)
+    cuadriceps_i = Column(Float, nullable=True)
+    isquios_d = Column(Float, nullable=True)
+    isquios_i = Column(Float, nullable=True)
+    sj_cm = Column(Float, nullable=True)
+    cmj_cm = Column(Float, nullable=True)
+    abalakov_cm = Column(Float, nullable=True)
+    cmj_potencia_w = Column(Float, nullable=True)
+    flexibilidad_cm = Column(Float, nullable=True)
+    push_ups_45s = Column(Integer, nullable=True)
+    sit_ups_45s = Column(Integer, nullable=True)
+    
+    rm_sentadilla = Column(Float, nullable=True)
+    rm_banco = Column(Float, nullable=True)
+    rm_peso_muerto = Column(Float, nullable=True)
+    rm3_sentadilla = Column(Float, nullable=True)
+    rm3_banco = Column(Float, nullable=True)
+    rm3_peso_muerto = Column(Float, nullable=True)
+    peso_rir3 = Column(Float, nullable=True)
+    peso_rir5 = Column(Float, nullable=True)
+    
+    cooper_m = Column(Float, nullable=True)
+    plancha_s = Column(Integer, nullable=True)
+    dominadas_reps = Column(Integer, nullable=True)
+    
+    observaciones = Column(String, nullable=True)
+    
+    alumno = relationship("Alumno")
+
+class ComposicionCorporal(Base):
+    __tablename__ = "composicion_corporal"
+    id_composicion = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id_alumno = Column(UUID(as_uuid=True), ForeignKey("alumnos.id_usuario"), nullable=False, index=True)
+    fecha = Column(DateTime, default=datetime.utcnow, nullable=False)
+    
+    peso = Column(Float, nullable=True)
+    porcentaje_grasa = Column(Float, nullable=True)
+    porcentaje_musculo = Column(Float, nullable=True)
+    porcentaje_agua = Column(Float, nullable=True)
+    masa_osea = Column(Float, nullable=True)
+    bmi = Column(Float, nullable=True)
+    
+    perimetro_pecho = Column(Float, nullable=True)
+    perimetro_cintura = Column(Float, nullable=True)
+    perimetro_cadera = Column(Float, nullable=True)
+    perimetro_brazo_d = Column(Float, nullable=True)
+    perimetro_brazo_i = Column(Float, nullable=True)
+    perimetro_pierna_d = Column(Float, nullable=True)
+    perimetro_pierna_i = Column(Float, nullable=True)
+    
+    observaciones = Column(String, nullable=True)
+    
+    alumno = relationship("Alumno")
+
+class ProgresoVisual(Base):
+    __tablename__ = "progreso_visual"
+    id_progreso = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id_alumno = Column(UUID(as_uuid=True), ForeignKey("alumnos.id_usuario"), nullable=False, index=True)
+    fecha = Column(DateTime, default=datetime.utcnow, nullable=False)
+    
+    url_frente = Column(String, nullable=True)
+    url_perfil = Column(String, nullable=True)
+    url_espalda = Column(String, nullable=True)
+    
+    visible_para_entrenador = Column(Boolean, default=False, nullable=False)
+    
+    observaciones = Column(String, nullable=True)
+    
+    alumno = relationship("Alumno")
+

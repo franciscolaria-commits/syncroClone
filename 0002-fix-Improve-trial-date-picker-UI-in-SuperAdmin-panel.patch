@@ -1,0 +1,48 @@
+From 105b4d22e6382d54ab1dc09444a2ac2fac153f72 Mon Sep 17 00:00:00 2001
+From: franciscolaria-commits <francisco.laria.1234@gmail.com>
+Date: Fri, 21 Aug 2026 18:19:25 -0300
+Subject: [PATCH 2/3] fix: Improve trial date picker UI in SuperAdmin panel
+
+---
+ pwa/src/views/SuperAdminPanel.jsx | 25 ++++++++++++++++---------
+ 1 file changed, 16 insertions(+), 9 deletions(-)
+
+diff --git a/pwa/src/views/SuperAdminPanel.jsx b/pwa/src/views/SuperAdminPanel.jsx
+index ba7d2e3..58586df 100644
+--- a/pwa/src/views/SuperAdminPanel.jsx
++++ b/pwa/src/views/SuperAdminPanel.jsx
+@@ -221,15 +221,22 @@ export default function SuperAdminPanel() {
+                             Periodo Prueba
+                           </label>
+                           {coach.en_periodo_prueba && (
+-                            <input 
+-                              type="date"
+-                              value={coach.fecha_fin_prueba ? coach.fecha_fin_prueba.split("T")[0] : ""}
+-                              onChange={(e) => {
+-                                const val = e.target.value;
+-                                updateCoach(coach.id_usuario, { fecha_fin_prueba: val ? new Date(val).toISOString() : null });
+-                              }}
+-                              className="w-full bg-gray-800 border border-gray-600 text-[10px] rounded p-1 text-gray-300 focus:border-emerald-500 mt-1"
+-                            />
++                            <div className="w-full mt-2 border-t border-gray-700 pt-2">
++                              <label className="text-[10px] text-gray-400 block mb-1">Finaliza el (opcional):</label>
++                              <input 
++                                type="date"
++                                value={coach.fecha_fin_prueba ? coach.fecha_fin_prueba.split("T")[0] : ""}
++                                onChange={(e) => {
++                                  const val = e.target.value;
++                                  if (val !== undefined) {
++                                      try {
++                                          updateCoach(coach.id_usuario, { fecha_fin_prueba: val ? new Date(val).toISOString() : null });
++                                      } catch (err) {}
++                                  }
++                                }}
++                                className="w-full bg-gray-800 border border-gray-600 text-[11px] rounded p-1.5 text-gray-300 focus:border-emerald-500"
++                              />
++                            </div>
+                           )}
+                         </div>
+                       </td>
+-- 
+2.52.0.windows.1
+

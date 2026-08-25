@@ -292,6 +292,7 @@ export default function StudentDashboard() {
           </div>
         )}
 
+        {activeTab === 'evolution' && (<StudentEvaluations />)}
         {activeTab === 'league' && (
           <StudentProgress />
         )}

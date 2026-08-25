@@ -1,0 +1,25 @@
+From 8e6089e66ad1d73f3488eaaac92d67dee4c3e4a6 Mon Sep 17 00:00:00 2001
+From: franciscolaria-commits <francisco.laria.1234@gmail.com>
+Date: Fri, 21 Aug 2026 14:30:30 -0300
+Subject: [PATCH 2/3] fix: resolve build error in CoachDashboard caused by
+ duplicate state declaration
+
+---
+ pwa/src/views/CoachDashboard.jsx | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/pwa/src/views/CoachDashboard.jsx b/pwa/src/views/CoachDashboard.jsx
+index 13e7202..5a483db 100644
+--- a/pwa/src/views/CoachDashboard.jsx
++++ b/pwa/src/views/CoachDashboard.jsx
+@@ -9,7 +9,6 @@ import { Menu, X, Copy, Download, ChevronDown, ChevronUp } from "lucide-react";
+ 
+ export default function CoachDashboard() {
+   const [activePanel, setActivePanel] = useState('students');
+-  const [loadingAction, setLoadingAction] = useState(null);
+   const [esConPeso, setEsConPeso] = useState(true);
+   const [isBuildingRoutine, setIsBuildingRoutine] = useState(false);
+   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+-- 
+2.52.0.windows.1
+
