@@ -151,7 +151,7 @@ class RutinaEjercicio(Base):
     nota_entrenador = Column(String, nullable=True)
 
     ejercicio = relationship("Ejercicio")
-    dia = relationship("RutinaDia")
+    dia = relationship("RutinaDia", overlaps="ejercicios")
 
 class EntrenamientoSesion(Base):
     __tablename__ = "entrenamiento_sesiones"

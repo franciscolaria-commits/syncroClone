@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api, logout } from '../services/api.js';
 import ActiveWorkout from './ActiveWorkout.jsx';
 import StudentProgress from './StudentProgress.jsx';
+import StudentEvaluations from './StudentEvaluations.jsx';
 import ExerciseAnimations from '../components/ExerciseAnimations.jsx';
 
 const getYouTubeEmbedUrl = (url) => {

@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api.js';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, LineChart, Line, XAxis, YAxis, CartesianGrid, Legend } from 'recharts';
 import SessionHistory from '../components/SessionHistory.jsx';
+import StudentEvaluations from './StudentEvaluations.jsx';
 
 // Helper para obtener estilo visual según el nivel
 const getTierStyle = (tier) => {
