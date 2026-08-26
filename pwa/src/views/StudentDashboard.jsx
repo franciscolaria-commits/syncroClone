@@ -143,6 +143,12 @@ export default function StudentDashboard() {
           >
             Mi Liga
           </button>
+          <button 
+            onClick={() => setActiveTab('evolution')} 
+            className={`flex-1 md:flex-none whitespace-nowrap px-4 py-2 text-xs font-bold uppercase tracking-widest transition-colors ${activeTab === 'evolution' ? 'bg-zinc-800 text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'}`}
+          >
+            Mi Evolución
+          </button>
         </nav>
 
         <button onClick={logout} className="text-xs font-black uppercase text-zinc-500 hover:text-red-500 transition-colors hidden md:block">
