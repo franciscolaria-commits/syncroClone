@@ -143,6 +143,7 @@ class EjercicioBase(BaseModel):
     url_gif: Optional[str] = None
     es_con_peso: Optional[bool] = True
     tipo_banda: Optional[str] = None
+    has_custom_media: Optional[bool] = False
 
 class EjercicioCreate(EjercicioBase):
     pass

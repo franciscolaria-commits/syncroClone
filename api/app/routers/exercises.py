@@ -73,7 +73,8 @@ def get_exercises(
             "url_gif": omap.get("url_gif") if str(ex.id_ejercicio) in override_map and omap.get("url_gif") is not None else ex.url_gif,
             "es_con_peso": ex.es_con_peso,
             "tipo_banda": ex.tipo_banda,
-            "id_entrenador": ex.id_entrenador
+            "id_entrenador": ex.id_entrenador,
+            "has_custom_media": str(ex.id_ejercicio) in override_map
         }
         result.append(ex_dict)
         

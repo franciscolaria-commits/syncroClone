@@ -712,7 +712,7 @@ export default function CoachDashboard() {
                    </div>
                    {!exe.id_entrenador ? (
                      <button onClick={() => handleOverrideMedia(exe.id_ejercicio)} className="w-full mt-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs py-2 rounded-lg font-bold border border-zinc-700/50 transition-colors">
-                       {exe.url_media?.includes('youtube') ? 'Editar mi Video 🎥' : 'Añadir mi Video 🎥'}
+                       {exe.has_custom_media ? 'Editar mi Video 🎥' : 'Añadir mi Video 🎥'}
                      </button>
                    ) : (
                      <div className="flex gap-2 w-full mt-2">
