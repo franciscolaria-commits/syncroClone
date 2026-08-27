@@ -1,6 +1,6 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { Camera, Activity, FileText, Upload, Plus, Trash2, CheckCircle2 } from 'lucide-react';
-import api from '../services/api';
+import { api } from '../services/api.js';
 
 const StudentEvaluations = ({ providedStudentId }) => {
   const [activeTab, setActiveTab] = useState('fisico');
@@ -43,7 +43,7 @@ const StudentEvaluations = ({ providedStudentId }) => {
       if (activeTab === 'cuerpo') endpoint = 'body';
       if (activeTab === 'fotos') endpoint = 'visual';
       
-      const res = await api.get(/api/v1/students//evaluations/);
+      const res = await api.get(`/api/v1/students/${studentId}/evaluations/${endpoint}`);
       if (activeTab === 'fisico') setPhysicalEvals(res.data);
       if (activeTab === 'cuerpo') setBodyComps(res.data);
       if (activeTab === 'fotos') setVisuals(res.data);
@@ -91,7 +91,7 @@ const StudentEvaluations = ({ providedStudentId }) => {
       if (activeTab === 'cuerpo') endpoint = 'body';
       if (activeTab === 'fotos') endpoint = 'visual';
 
-      await api.post(/api/v1/students//evaluations/, formData);
+      await api.post(`/api/v1/students/${studentId}/evaluations/${endpoint}`, formData);
       setShowForm(false);
       setFormData({});
       fetchData();
@@ -108,7 +108,7 @@ const StudentEvaluations = ({ providedStudentId }) => {
       if (activeTab === 'cuerpo') endpoint = 'body';
       if (activeTab === 'fotos') endpoint = 'visual';
 
-      await api.delete(/api/v1/evaluations//);
+      await api.delete(`/api/v1/evaluations/${id}`);
       fetchData();
     } catch (err) {
       alert("Error al borrar");
@@ -118,9 +118,9 @@ const StudentEvaluations = ({ providedStudentId }) => {
   return (
     <div className="w-full text-white">
       <div className="flex gap-2 mb-6 border-b border-zinc-800 pb-2">
-        <button onClick={() => {setActiveTab('fisico'); setShowForm(false);}} className={px-4 py-2 rounded text-xs font-bold uppercase transition-colors }>Físico</button>
-        <button onClick={() => {setActiveTab('cuerpo'); setShowForm(false);}} className={px-4 py-2 rounded text-xs font-bold uppercase transition-colors }>Cuerpo</button>
-        <button onClick={() => {setActiveTab('fotos'); setShowForm(false);}} className={px-4 py-2 rounded text-xs font-bold uppercase transition-colors }>Fotos</button>
+        <button onClick={() => {setActiveTab('fisico'); setShowForm(false);}} className={`px-4 py-2 rounded text-xs font-bold uppercase transition-colors ${activeTab === 'fisico' ? 'bg-zinc-800 text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'}`}>Físico</button>
+        <button onClick={() => {setActiveTab('cuerpo'); setShowForm(false);}} className={`px-4 py-2 rounded text-xs font-bold uppercase transition-colors ${activeTab === 'cuerpo' ? 'bg-zinc-800 text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'}`}>Cuerpo</button>
+        <button onClick={() => {setActiveTab('fotos'); setShowForm(false);}} className={`px-4 py-2 rounded text-xs font-bold uppercase transition-colors ${activeTab === 'fotos' ? 'bg-zinc-800 text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'}`}>Fotos</button>
       </div>
 
       {!showForm && (
@@ -316,3 +316,4 @@ const StudentEvaluations = ({ providedStudentId }) => {
 };
 
 export default StudentEvaluations;
+

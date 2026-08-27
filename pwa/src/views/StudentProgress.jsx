@@ -29,6 +29,7 @@ const ShieldIcon = ({ className }) => (
 
 export default function StudentProgress({ studentId }) {
   const [selectedExercise, setSelectedExercise] = React.useState('');
+  const [progressTab, setProgressTab] = React.useState('training'); // training, evaluations
   const { data: stats, isLoading: loadingStats } = useQuery({
     queryKey: ['studentStats', studentId || 'me'],
     queryFn: () => api.get(studentId ? `/api/v1/coaches/students/${studentId}/stats` : '/api/v1/students/me/stats')
@@ -83,7 +84,28 @@ export default function StudentProgress({ studentId }) {
   const exercises = Object.keys(repMaxes);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 auto-rows-min">
+    <div className="w-full">
+      {studentId && (
+        <div className="flex gap-4 mb-4 border-b border-zinc-800 pb-2">
+          <button 
+            onClick={() => setProgressTab('training')}
+            className={`text-xs font-bold uppercase tracking-widest px-4 py-2 rounded transition-colors ${progressTab === 'training' ? 'bg-zinc-800 text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'}`}
+          >
+            Progreso Deportivo
+          </button>
+          <button 
+            onClick={() => setProgressTab('evaluations')}
+            className={`text-xs font-bold uppercase tracking-widest px-4 py-2 rounded transition-colors ${progressTab === 'evaluations' ? 'bg-zinc-800 text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'}`}
+          >
+            Evaluaciones Físicas
+          </button>
+        </div>
+      )}
+      
+      {progressTab === 'evaluations' && studentId ? (
+        <StudentEvaluations providedStudentId={studentId} />
+      ) : (
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 auto-rows-min">
 
       {/* ASISTENCIA HERO (Sólo Entrenador) */}
       {studentId && (
@@ -302,6 +324,8 @@ export default function StudentProgress({ studentId }) {
         )}
       </div>
 
+    </div>
+    )}
     </div>
   );
 }

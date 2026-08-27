@@ -125,7 +125,23 @@ export default function StudentDashboard() {
           </button>
         </div>
         
-        <nav className="flex gap-1 md:gap-4 border border-zinc-800 p-1 bg-zinc-900 w-full md:w-auto overflow-x-auto scrollbar-hide">
+        
+        {/* Mobile Navigation Dropdown */}
+        <div className="md:hidden w-full px-4 mt-2">
+          <select 
+            value={activeTab} 
+            onChange={(e) => setActiveTab(e.target.value)}
+            className="w-full bg-zinc-900 border border-zinc-800 text-white font-bold rounded-lg px-4 py-3 outline-none focus:border-emerald-500 uppercase tracking-widest text-xs"
+          >
+            <option value="home">Entrenar</option>
+            <option value="routine">Mi Rutina</option>
+            <option value="league">Mi Liga</option>
+            <option value="evolution">Mi Evolución</option>
+          </select>
+        </div>
+
+        {/* Desktop Navigation */}
+        <nav className="hidden md:flex gap-1 md:gap-4 border border-zinc-800 p-1 bg-zinc-900 w-full md:w-auto overflow-x-auto scrollbar-hide">
           <button 
             onClick={() => setActiveTab('home')} 
             className={`flex-1 md:flex-none whitespace-nowrap px-4 py-2 text-xs font-bold uppercase tracking-widest transition-colors ${activeTab === 'home' ? 'bg-zinc-800 text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'}`}
