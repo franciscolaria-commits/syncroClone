@@ -44,9 +44,9 @@ const StudentEvaluations = ({ providedStudentId }) => {
       if (activeTab === 'fotos') endpoint = 'visual';
       
       const res = await api.get(`/api/v1/students/${studentId}/evaluations/${endpoint}`);
-      if (activeTab === 'fisico') setPhysicalEvals(res.data);
-      if (activeTab === 'cuerpo') setBodyComps(res.data);
-      if (activeTab === 'fotos') setVisuals(res.data);
+      if (activeTab === 'fisico') setPhysicalEvals(res);
+      if (activeTab === 'cuerpo') setBodyComps(res);
+      if (activeTab === 'fotos') setVisuals(res);
     } catch (err) {
       console.error(err);
     }
@@ -69,13 +69,13 @@ const StudentEvaluations = ({ providedStudentId }) => {
           filename: file.name,
           content_type: file.type
         });
-        const uploadRes = await fetch(presignedRes.data.upload_url, {
+        const uploadRes = await fetch(presignedRes.upload_url, {
           method: 'PUT',
           body: file,
           headers: { 'Content-Type': file.type }
         });
         if (!uploadRes.ok) throw new Error("Upload failed");
-        setFormData({ ...formData, [field]: presignedRes.data.public_url });
+        setFormData({ ...formData, [field]: presignedRes.public_url });
       } catch (err) {
         alert("Error al subir imagen");
       }
