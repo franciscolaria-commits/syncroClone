@@ -7,13 +7,14 @@ from datetime import datetime
 
 from app.database import get_db
 from app.models import EvaluacionFisica, ComposicionCorporal, ProgresoVisual, Alumno
-from app.schemas.evaluations import (
+from app.schemas import (
     EvaluacionFisicaCreate, EvaluacionFisicaOut,
     ComposicionCorporalCreate, ComposicionCorporalOut,
     ProgresoVisualCreate, ProgresoVisualOut,
     ConfiguracionEvaluacionUpdate
 )
-from app.dependencies import get_current_user
+from app.utils.auth import get_current_user
+from app.models import Usuario
 
 router = APIRouter()
 
