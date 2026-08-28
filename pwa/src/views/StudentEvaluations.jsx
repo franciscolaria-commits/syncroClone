@@ -66,17 +66,14 @@ const StudentEvaluations = ({ providedStudentId }) => {
       setUploading(true);
       try {
         const file = e.target.files[0];
-        const presignedRes = await api.post("/api/v1/storage/presigned", {
-          filename: file.name,
-          content_type: file.type
+        const uploadData = new FormData();
+        uploadData.append('file', file);
+        
+        const uploadRes = await api.post("/api/v1/storage/upload", uploadData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
         });
-        const uploadRes = await fetch(presignedRes.upload_url, {
-          method: 'PUT',
-          body: file,
-          headers: { 'Content-Type': file.type }
-        });
-        if (!uploadRes.ok) throw new Error("Upload failed");
-        setFormData({ ...formData, [field]: presignedRes.public_url });
+        
+        setFormData({ ...formData, [field]: uploadRes.public_url });
       } catch (err) {
         console.error(err); alert("Error al subir imagen");
       }
