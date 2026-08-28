@@ -108,40 +108,172 @@ export default function StudentDashboard() {
               className="bg-orange-500 hover:bg-orange-400 text-zinc-950 font-bold px-4 py-1.5 rounded text-sm whitespace-nowrap transition-colors disabled:opacity-50"
             >
               {isUpdatingPhone ? 'Guardando...' : 'Guardar'}
+import StudentEvaluations from './StudentEvaluations.jsx';
+import ExerciseAnimations from '../components/ExerciseAnimations.jsx';
+
+const getYouTubeEmbedUrl = (url) => {
+  if (!url) return null;
+  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|shorts\/|watch\?v=|watch\?.+&v=))([^&?]+)/);
+  return match ? `https://www.youtube.com/embed/${match[1]}?autoplay=1&mute=1&loop=1&playlist=${match[1]}` : url;
+};
+
+export default function StudentDashboard() {
+  const [activeTab, setActiveTab] = useState('home'); // home, routine, league, history
+  const [isWorkingOut, setIsWorkingOut] = useState(false);
+  const [demoExercise, setDemoExercise] = useState(null);
+  const [selectedDayIdx, setSelectedDayIdx] = useState(null);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  
+  const [phoneInput, setPhoneInput] = useState('');
+  const [isUpdatingPhone, setIsUpdatingPhone] = useState(false);
+
+  const { data: profile, isLoading: loadingProfile } = useQuery({
+    queryKey: ['studentProfile', 'v2'],
+    queryFn: () => api.get("/api/v1/students/profile"),
+    onError: (err) => {
+      if (err.message.includes("401")) logout();
+    }
+  });
+
+  const { data: routine, isLoading: loadingRoutine } = useQuery({
+    queryKey: ['studentRoutine'],
+    queryFn: () => api.get("/api/v1/students/me/routine"),
+    retry: false
+  });
+
+  const { data: stats } = useQuery({
+    queryKey: ['studentStats'],
+    queryFn: () => api.get('/api/v1/students/me/stats')
+  });
+
+  if (loadingProfile) {
+    return <div className="min-h-screen bg-zinc-950 flex items-center justify-center text-zinc-400 font-mono uppercase tracking-widest">Cargando...</div>;
+  }
+
+  const isSuspended = profile?.estado_activo === false || (profile?.data && profile.data.estado_activo === false);
+  const isBlockedByPayment = profile?.bloqueado_por_pago || (profile?.data && profile.data.bloqueado_por_pago);
+
+  if (!profile && !loadingProfile) {
+    return <div className="text-white p-10">ERROR: Profile no cargó. ¿Error 500 del backend?</div>;
+  }
+
+  if (isSuspended) {
+    return (
+      <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center text-zinc-200 font-sans p-4">
+        <div className="bg-red-900/20 border border-red-900/50 p-8 rounded-2xl max-w-md w-full text-center flex flex-col items-center gap-6">
+          <div className="w-16 h-16 bg-red-900/40 text-red-500 rounded-full flex items-center justify-center mb-2">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+          </div>
+          <h1 className="text-2xl font-black uppercase tracking-tighter text-red-400">Acceso Suspendido</h1>
+          <p className="text-sm text-zinc-400">
+            {isBlockedByPayment 
+              ? "Tu cuenta ha sido suspendida automáticamente por falta de pago. Por favor, comunícate con tu entrenador para regularizar tu situación mensual y reactivar tu acceso."
+              : "Tu cuenta ha sido suspendida temporalmente por tu entrenador. Por favor, comunícate con él para regularizar tu situación y reactivar tu acceso a las rutinas."
+            }
+          </p>
+          <button onClick={logout} className="mt-4 px-6 py-3 bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-bold uppercase tracking-widest rounded-xl transition-colors w-full">
+            Cerrar Sesión
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const handleUpdatePhone = async () => {
+    if (!phoneInput) return;
+    setIsUpdatingPhone(true);
+    try {
+      await api.put("/api/v1/students/profile/phone", { telefono: phoneInput });
+      window.location.reload();
+    } catch (e) {
+      alert("Error al guardar el teléfono.");
+    } finally {
+      setIsUpdatingPhone(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-zinc-950 text-zinc-200 font-sans selection:bg-emerald-500 selection:text-zinc-950">
+      
+      {profile?.usuario && !profile.usuario.telefono && (
+        <div className="bg-orange-500/10 border-b border-orange-500/30 p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <p className="text-orange-400 text-sm">
+            <strong className="font-bold">¡Atención!</strong> Es necesario que ingreses tu número de WhatsApp para recibir notificaciones y avisos importantes.
+          </p>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <input 
+              type="text" 
+              placeholder="Ej: +5491123456789"
+              value={phoneInput}
+              onChange={(e) => setPhoneInput(e.target.value)}
+              className="bg-zinc-900 border border-zinc-700 rounded px-3 py-1.5 text-sm w-full sm:w-48 text-white focus:outline-none focus:border-orange-500"
+            />
+            <button 
+              onClick={handleUpdatePhone}
+              disabled={isUpdatingPhone}
+              className="bg-orange-500 hover:bg-orange-400 text-zinc-950 font-bold px-4 py-1.5 rounded text-sm whitespace-nowrap transition-colors disabled:opacity-50"
+            >
+              {isUpdatingPhone ? 'Guardando...' : 'Guardar'}
             </button>
           </div>
         </div>
       )}
 
       {/* Brutalist Top Navbar */}
-      <header className="sticky top-0 z-50 bg-zinc-950 border-b border-zinc-800 flex flex-col md:flex-row items-center justify-between px-6 py-4 gap-4 md:gap-0">
+      <header className="sticky top-0 z-50 bg-zinc-950 border-b border-zinc-800 flex flex-col md:flex-row items-center justify-between px-6 py-4 gap-4">
         <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
           <div className="flex items-center gap-3">
             <div className="h-5 w-5 bg-emerald-500 rounded-sm"></div>
             <h1 className="text-xl font-black tracking-tighter uppercase text-white">ATLETA PANEL</h1>
           </div>
-          <button onClick={logout} className="text-xs font-black uppercase text-zinc-500 hover:text-red-500 transition-colors md:hidden">
-            SALIR
-          </button>
+          <div className="flex items-center md:hidden">
+            <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-zinc-400 hover:text-white p-2">
+              {isMobileMenuOpen ? (
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+              )}
+            </button>
+          </div>
         </div>
-        
         
         {/* Mobile Navigation Dropdown */}
-        <div className="md:hidden w-full px-4 mt-2">
-          <select 
-            value={activeTab} 
-            onChange={(e) => setActiveTab(e.target.value)}
-            className="w-full bg-zinc-900 border border-zinc-800 text-white font-bold rounded-lg px-4 py-3 outline-none focus:border-emerald-500 uppercase tracking-widest text-xs"
-          >
-            <option value="home">Entrenar</option>
-            <option value="routine">Mi Rutina</option>
-            <option value="league">Mi Liga</option>
-            <option value="evolution">Mi Evolución</option>
-          </select>
-        </div>
+        {isMobileMenuOpen && (
+          <div className="md:hidden absolute top-[70px] left-4 right-4 z-50">
+            <div className="bg-zinc-900/95 backdrop-blur-xl border border-zinc-800 rounded-2xl p-4 flex flex-col gap-2 shadow-xl">
+              <button 
+                onClick={() => { setActiveTab('home'); setIsMobileMenuOpen(false); }} 
+                className={`w-full text-left py-3 px-4 rounded-xl text-sm font-bold uppercase tracking-widest transition-all ${activeTab === 'home' ? 'bg-zinc-800 text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'}`}
+              >
+                Entrenar
+              </button>
+              <button 
+                onClick={() => { setActiveTab('routine'); setIsMobileMenuOpen(false); }} 
+                className={`w-full text-left py-3 px-4 rounded-xl text-sm font-bold uppercase tracking-widest transition-all ${activeTab === 'routine' ? 'bg-zinc-800 text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'}`}
+              >
+                Mi Rutina
+              </button>
+              <button 
+                onClick={() => { setActiveTab('league'); setIsMobileMenuOpen(false); }} 
+                className={`w-full text-left py-3 px-4 rounded-xl text-sm font-bold uppercase tracking-widest transition-all ${activeTab === 'league' ? 'bg-zinc-800 text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'}`}
+              >
+                Mi Liga
+              </button>
+              <button 
+                onClick={() => { setActiveTab('evolution'); setIsMobileMenuOpen(false); }} 
+                className={`w-full text-left py-3 px-4 rounded-xl text-sm font-bold uppercase tracking-widest transition-all ${activeTab === 'evolution' ? 'bg-zinc-800 text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'}`}
+              >
+                Mi Evolución
+              </button>
+              <button onClick={() => { logout(); setIsMobileMenuOpen(false); }} className="w-full text-left py-3 px-4 rounded-xl text-sm font-bold uppercase tracking-widest text-red-500 hover:text-red-400">
+                SALIR
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Desktop Navigation */}
-        <nav className="hidden md:flex gap-1 md:gap-4 border border-zinc-800 p-1 bg-zinc-900 w-full md:w-auto overflow-x-auto scrollbar-hide">
+        <nav className="hidden md:flex gap-1 md:gap-4 border border-zinc-800 p-1 bg-zinc-900 w-full md:w-auto">
           <button 
             onClick={() => setActiveTab('home')} 
             className={`flex-1 md:flex-none whitespace-nowrap px-4 py-2 text-xs font-bold uppercase tracking-widest transition-colors ${activeTab === 'home' ? 'bg-zinc-800 text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'}`}
@@ -168,7 +300,7 @@ export default function StudentDashboard() {
           </button>
         </nav>
 
-        <button onClick={logout} className="text-xs font-black uppercase text-zinc-500 hover:text-red-500 transition-colors hidden md:block">
+        <button onClick={logout} className="text-xs font-black uppercase text-zinc-500 hover:text-red-500 transition-colors hidden md:block ml-4">
           SALIR
         </button>
       </header>

@@ -97,7 +97,7 @@ def register_student(student_data: AlumnoCreate, db: Session = Depends(get_db)):
         if coach_user:
             entrenador_obj = db.query(Entrenador).filter(Entrenador.id_usuario == coach_user.id_usuario).first()
             if entrenador_obj:
-                id_entrenador = entrenador_obj.id_entrenador
+                id_entrenador = entrenador_obj.id_usuario
         
         if not id_entrenador:
             raise HTTPException(
