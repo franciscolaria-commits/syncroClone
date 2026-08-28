@@ -89,7 +89,13 @@ const StudentEvaluations = ({ providedStudentId }) => {
       if (activeTab === 'cuerpo') endpoint = 'body';
       if (activeTab === 'fotos') endpoint = 'visual';
 
-      await api.post(`/api/v1/students/${studentId}/evaluations/${endpoint}`, formData);
+      
+      let payload = { ...formData };
+      if (activeTab === 'fotos' && userRole === 'entrenador') {
+        payload.visible_para_entrenador = true;
+      }
+      await api.post(`/api/v1/students/${studentId}/evaluations/${endpoint}`, payload);
+
       setShowForm(false);
       setFormData({});
       fetchData();
@@ -212,10 +218,12 @@ const StudentEvaluations = ({ providedStudentId }) => {
             </label>
           </div>
 
+          {userRole !== 'entrenador' && (
           <label className="mt-4 flex items-center gap-2 cursor-pointer text-sm">
             <input type="checkbox" name="visible_para_entrenador" onChange={handleCheckbox} className="rounded bg-zinc-800 text-emerald-500" />
             Permitir que mi entrenador vea estas fotos
           </label>
+          )}
 
           <div className="mt-4">
             <button type="submit" disabled={uploading} className="bg-emerald-500 text-black px-4 py-2 font-bold rounded">
