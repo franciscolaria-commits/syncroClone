@@ -108,7 +108,7 @@ const StudentEvaluations = ({ providedStudentId }) => {
       if (activeTab === 'cuerpo') endpoint = 'body';
       if (activeTab === 'fotos') endpoint = 'visual';
 
-      await api.delete(`/api/v1/evaluations/${id}`);
+      await api.delete(`/api/v1/evaluations/${endpoint}/${id}`);
       fetchData();
     } catch (err) {
       alert("Error al borrar");

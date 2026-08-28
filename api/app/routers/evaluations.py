@@ -16,7 +16,7 @@ from app.schemas import (
 from app.utils.auth import get_current_user
 from app.models import Usuario
 
-router = APIRouter()
+router = APIRouter(prefix="/api/v1", tags=["Evaluations"])
 
 # ----------------- Evaluacion Fisica -----------------
 @router.post("/students/{student_id}/evaluations/physical", response_model=EvaluacionFisicaOut)
