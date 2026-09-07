@@ -94,11 +94,19 @@ export default function ActiveWorkout({ routine, initialDayIdx, onComplete, onCa
     setIsResting(true);
   };
 
+  const handleCancel = async () => {
+    if (sets.length > 0) {
+      const isConfirmed = await modal.confirm("¿Seguro que querés salir? Todo el progreso de este entrenamiento se perderá.");
+      if (!isConfirmed) return;
+    }
+    onCancel();
+  };
+
   return (
     <div className="fixed inset-0 bg-zinc-950 z-50 overflow-y-auto p-4 sm:p-8 flex flex-col">
       <header className="flex justify-between items-center mb-6 border-b border-zinc-800 pb-4">
         <h2 className="text-xl font-bold text-indigo-400">Entrenando: <span className="text-white">{routine.nombre_rutina}</span></h2>
-        <button onClick={onCancel} className="text-zinc-400 hover:text-red-400 font-bold transition-all">Cancelar</button>
+        <button onClick={handleCancel} className="text-zinc-400 hover:text-red-400 font-bold transition-all">Cancelar</button>
       </header>
 
       {isResting && (
