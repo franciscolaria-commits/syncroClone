@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { api, logout } from '../services/api.js';
 import { useModal } from '../components/ModalProvider.jsx';
 import WorkoutBuilder from './WorkoutBuilder.jsx';
@@ -583,7 +583,7 @@ export default function CoachDashboard() {
         {activePanel === 'audits' && (
           <section className="glass-card rounded-2xl p-6 shadow-lg flex flex-col gap-6">
             <div>
-              <h2 className="text-lg font-bold text-amber-500 flex items-center gap-2">⚠️ Red Flags (Auditoría)</h2>
+              <h2 className="text-lg font-bold text-amber-500 flex items-center gap-2">⚠️ Red Flags (Auditoría)</h2>
               <p className="text-xs text-zinc-400 mt-1">Récords sospechosos o de nivel Élite que requieren tu validación manual.</p>
             </div>
             <div className="grid grid-cols-1 gap-4">
@@ -609,7 +609,7 @@ export default function CoachDashboard() {
             </div>
 
             <div className="mt-6 border-t border-zinc-800 pt-6">
-              <h2 className="text-lg font-bold text-red-500 flex items-center gap-2 mb-1">🚨 Alertas de Baja Asistencia</h2>
+              <h2 className="text-lg font-bold text-red-500 flex items-center gap-2 mb-1">ðŸš¨ Alertas de Baja Asistencia</h2>
               <p className="text-xs text-zinc-400 mb-4">Alumnos que asistieron menos del 50% de su objetivo la semana pasada.</p>
               
               <div className="grid grid-cols-1 gap-4">
@@ -712,7 +712,7 @@ export default function CoachDashboard() {
                    </div>
                    {!exe.id_entrenador ? (
                      <button onClick={() => handleOverrideMedia(exe.id_ejercicio)} className="w-full mt-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs py-2 rounded-lg font-bold border border-zinc-700/50 transition-colors">
-                       {exe.url_media ? 'Editar mi Video 🎥' : 'Añadir mi Video 🎥'}
+                       {exe.url_media ? 'Editar mi Video ðŸŽ¥' : 'Añadir mi Video ðŸŽ¥'}
                      </button>
                    ) : (
                      <div className="flex gap-2 w-full mt-2">
@@ -1009,3 +1009,4 @@ export default function CoachDashboard() {
     </div>
   );
 }
+

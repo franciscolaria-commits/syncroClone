@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { api, logout } from "../services/api";
 import { LogOut, Users, Settings, Activity, DollarSign, BarChart2, Trash2, CheckCircle, XCircle } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
@@ -220,7 +220,7 @@ export default function SuperAdminPanel() {
                             />
                             Periodo Prueba
                           </label>
-                          {coach.en_periodo_prueba && (
+                          {coach.en_periodo_prueba ? (
                             <div className="w-full mt-2 border-t border-gray-700 pt-2">
                               <label className="text-[10px] text-gray-300 block mb-1 font-medium">Días de prueba restantes:</label>
                               <input 
@@ -245,6 +245,25 @@ export default function SuperAdminPanel() {
                                 className="w-full bg-gray-800 border border-gray-600 text-[11px] rounded p-1.5 text-white focus:border-emerald-500"
                               />
                               <p className="text-[9px] text-gray-500 mt-1 leading-tight">Ingresá el número de días. La fecha exacta de corte se calculará sola.</p>
+                            </div>
+                          ) : (
+                            <div className="w-full mt-2 border-t border-gray-700 pt-2">
+                              <label className="text-[10px] text-gray-300 block mb-1 font-medium">Fecha de pago (Vencimiento):</label>
+                              <input 
+                                type="date"
+                                defaultValue={coach.fecha_vencimiento ? coach.fecha_vencimiento.split('T')[0] : ''}
+                                onBlur={(e) => {
+                                  if (e.target.value) {
+                                    updateCoach(coach.id_usuario, { fecha_vencimiento: new Date(e.target.value).toISOString() });
+                                  } else {
+                                    updateCoach(coach.id_usuario, { fecha_vencimiento: null });
+                                  }
+                                }}
+                                className="w-full bg-gray-800 border border-gray-600 text-[11px] rounded p-1.5 text-white focus:border-emerald-500"
+                              />
+                              <div className={`mt-2 text-[10px] flex items-center gap-1 font-medium ${coach.pago_mes_registrado ? 'text-emerald-400' : 'text-orange-400'}`}>
+                                {coach.pago_mes_registrado ? '✅ Mes Pagado' : '⚠️ Mes Pendiente'}
+                              </div>
                             </div>
                           )}
                         </div>

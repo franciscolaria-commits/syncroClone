@@ -39,7 +39,7 @@ async function request(endpoint, options = {}) {
 
   // Manual timeout for max compatibility
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s
+  const timeoutId = setTimeout(() => controller.abort(), 45000); // 45s
 
   try {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {

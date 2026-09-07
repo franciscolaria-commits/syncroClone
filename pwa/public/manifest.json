@@ -1,24 +1,24 @@
-{
-  "short_name": "CoachPlatform",
-  "name": "Fitness Platform for Coaches",
-  "description": "Plataforma B2B para entrenadores fitness y gestión de alumnos offline.",
+﻿{
+  "short_name": "Syncro",
+  "name": "Syncro Fitness",
+  "description": "Plataforma B2B para entrenadores fitness y atletas.",
   "icons": [
     {
-      "src": "https://img.icons8.com/color/192/dumbbells.png",
+      "src": "/logo.png",
       "type": "image/png",
       "sizes": "192x192",
       "purpose": "any maskable"
     },
     {
-      "src": "https://img.icons8.com/color/512/dumbbells.png",
+      "src": "/logo.png",
       "type": "image/png",
       "sizes": "512x512",
       "purpose": "any maskable"
     }
   ],
-  "start_url": "./index.html",
+  "start_url": "/index.html",
   "background_color": "#09090b",
-  "theme_color": "#2563eb",
+  "theme_color": "#09090b",
   "display": "standalone",
   "orientation": "portrait"
 }
