@@ -52,7 +52,7 @@ export default function SuperAdminPanel() {
   };
 
   const deleteCoach = async (coachId) => {
-    if (!window.confirm("Â¿EstÃ¡s seguro de que deseas borrar (soft-delete) a este entrenador? Sus alumnos quedarÃ¡n inaccesibles.")) return;
+    if (!window.confirm("¿Estás seguro de que deseas borrar (soft-delete) a este entrenador? Sus alumnos quedarán inaccesibles.")) return;
     try {
       await api.delete(`/api/v1/admin/coaches/${coachId}`);
       setCoaches(coaches.filter(c => c.id_usuario !== coachId));
@@ -136,7 +136,7 @@ export default function SuperAdminPanel() {
             <div className="p-6 border-b border-gray-700 flex justify-between items-center">
               <h2 className="text-lg font-medium text-white flex items-center gap-2">
                 <Users className="w-5 h-5 text-emerald-500" />
-                GestiÃ³n de Entrenadores B2B
+                Gestión de Entrenadores B2B
               </h2>
             </div>
             <div className="overflow-x-auto">
@@ -347,7 +347,7 @@ export default function SuperAdminPanel() {
                 </ResponsiveContainer>
               </div>
               {finances.chart_data.length === 0 && (
-                <div className="text-center text-gray-500 mt-4">No hay datos histÃ³ricos suficientes.</div>
+                <div className="text-center text-gray-500 mt-4">No hay datos históricos suficientes.</div>
               )}
             </div>
           </div>
@@ -389,7 +389,7 @@ export default function SuperAdminPanel() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-400 mb-1">MÃ©todo de Pago</label>
+                  <label className="block text-xs font-semibold text-gray-400 mb-1">Método de Pago</label>
                   <select
                     value={payMethod}
                     onChange={(e) => setPayMethod(e.target.value)}

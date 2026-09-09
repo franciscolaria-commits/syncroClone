@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api, logout } from '../services/api.js';
 import ActiveWorkout from './ActiveWorkout.jsx';
@@ -162,6 +162,12 @@ export default function StudentDashboard() {
               >
                 Mi Evolución
               </button>
+              <button 
+                onClick={() => { setActiveTab('tutorial'); setIsMobileMenuOpen(false); }} 
+                className={`w-full text-left py-3 px-4 rounded-xl text-sm font-bold uppercase tracking-widest transition-all ${activeTab === 'tutorial' ? 'bg-zinc-800 text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'}`}
+              >
+                Cómo Usar
+              </button>
               <button onClick={() => { logout(); setIsMobileMenuOpen(false); }} className="w-full text-left py-3 px-4 rounded-xl text-sm font-bold uppercase tracking-widest text-red-500 hover:text-red-400">
                 SALIR
               </button>
@@ -195,11 +201,13 @@ export default function StudentDashboard() {
           >
             Mi Evolución
           </button>
-        </nav>
-
-        <button onClick={() => setActiveTab('tutorial')} className={`text-xs font-black uppercase transition-colors hidden md:block ${activeTab === 'tutorial' ? 'text-emerald-400' : 'text-zinc-500 hover:text-emerald-400'}`}>
-            CÓMO USAR
+          <button 
+            onClick={() => setActiveTab('tutorial')} 
+            className={`flex-1 md:flex-none whitespace-nowrap px-4 py-2 text-xs font-bold uppercase tracking-widest transition-colors ${activeTab === 'tutorial' ? 'bg-zinc-800 text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'}`}
+          >
+            Cómo Usar
           </button>
+        </nav>
           <button onClick={logout} className="text-xs font-black uppercase text-zinc-500 hover:text-red-500 transition-colors hidden md:block">
           SALIR
         </button>
