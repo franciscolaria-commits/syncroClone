@@ -68,10 +68,22 @@ export default function StudentProgress({ studentId }) {
   const filteredChartData = chartData ? chartData.filter(d => d.ejercicio_nombre === selectedExercise) : [];
 
   if (loadingStats) {
-    return <div className="p-12 text-center text-zinc-500 font-mono uppercase tracking-widest">CARGANDO DATOS...</div>;
+    return (
+      <div className="p-12 flex flex-col items-center justify-center gap-4">
+        <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-zinc-500 font-mono uppercase tracking-widest text-xs">Cargando datos de progreso...</p>
+      </div>
+    );
   }
 
-  if (!stats) return null;
+  if (!stats) {
+    return (
+      <div className="p-12 text-center">
+        <p className="text-zinc-700 font-black text-3xl uppercase tracking-tighter">Sin datos de progreso.</p>
+        <p className="text-zinc-600 text-sm mt-2">El alumno aún no ha completado ninguna sesión.</p>
+      </div>
+    );
+  }
 
   const winRate = stats.win_rate_percentage || 0;
   const pieData = [

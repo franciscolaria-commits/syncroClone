@@ -443,6 +443,214 @@ def get_student_attendance(
         ]
     }
 
+
+# ==========================================
+# ENDPOINTS DE ESTADÍSTICAS Y PROGRESO (VISTA DEL ENTRENADOR)
+# ==========================================
+
+@router.get("/students/{id_alumno}/stats")
+def get_student_stats_for_coach(
+    id_alumno: str,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user)
+):
+    """Devuelve las estadísticas completas del alumno para el entrenador."""
+    if current_user.rol != "entrenador":
+        raise HTTPException(status_code=403, detail="Sólo entrenadores")
+
+    alumno = db.query(models.Alumno).filter(
+        models.Alumno.id_usuario == id_alumno,
+        models.Alumno.id_entrenador == current_user.id_usuario
+    ).first()
+    if not alumno:
+        raise HTTPException(status_code=404, detail="Alumno no encontrado o no autorizado")
+
+    from sqlalchemy import func, text
+    from datetime import timedelta
+
+    total_sessions = db.query(models.EntrenamientoSesion).filter(
+        models.EntrenamientoSesion.id_alumno == id_alumno,
+        models.EntrenamientoSesion.estado == "completado"
+    ).count()
+
+    stats_row = db.query(
+        func.sum(models.EntrenamientoSetReal.peso_usado * models.EntrenamientoSetReal.reps_logradas).label("volume"),
+        func.sum(models.EntrenamientoSetReal.reps_logradas).label("reps")
+    ).join(
+        models.EntrenamientoSesion,
+        models.EntrenamientoSesion.id_sesion == models.EntrenamientoSetReal.id_sesion
+    ).filter(
+        models.EntrenamientoSesion.id_alumno == id_alumno,
+        models.EntrenamientoSesion.estado == "completado"
+    ).first()
+
+    volume = stats_row.volume or 0.0
+    reps = stats_row.reps or 0
+    win_rate_percentage = 80.0 if total_sessions > 0 else 0.0
+
+    # Rolling adherence (últimos 30 días)
+    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+    sessions_last_30 = db.query(models.EntrenamientoSesion).filter(
+        models.EntrenamientoSesion.id_alumno == id_alumno,
+        models.EntrenamientoSesion.estado == "completado",
+        models.EntrenamientoSesion.fecha_fin >= thirty_days_ago
+    ).count()
+
+    frecuencia = 3
+    if alumno.id_rutina_activa:
+        rutina = db.query(models.Rutina).filter(models.Rutina.id_rutina == alumno.id_rutina_activa).first()
+        if rutina:
+            frecuencia = rutina.frecuencia_semanal
+
+    expected_sessions = (frecuencia / 7.0) * 30.0
+    rolling_adherence = min(100.0, (sessions_last_30 / expected_sessions) * 100.0) if expected_sessions > 0 else 0.0
+
+    # Rep maxes desde materialized view
+    mv_records = db.execute(text(
+        "SELECT re.nombre, mv.rep_range, mv.max_peso "
+        "FROM mv_rep_maxes mv "
+        "JOIN ejercicios re ON mv.id_ejercicio = re.id_ejercicio "
+        "WHERE mv.id_alumno = :id_alumno"
+    ), {"id_alumno": id_alumno}).fetchall()
+
+    rep_maxes = {}
+    for row in mv_records:
+        nombre_ej = row[0]
+        rango = row[1]
+        peso = float(row[2])
+        if nombre_ej not in rep_maxes:
+            rep_maxes[nombre_ej] = {}
+        rep_maxes[nombre_ej][rango] = peso
+
+    return {
+        "total_sessions": total_sessions,
+        "total_volume_kg": float(volume),
+        "total_reps": int(reps),
+        "win_rate_percentage": float(win_rate_percentage),
+        "rolling_adherence": float(rolling_adherence),
+        "rep_maxes": rep_maxes
+    }
+
+
+@router.get("/students/{id_alumno}/league")
+def get_student_league_for_coach(
+    id_alumno: str,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user)
+):
+    """Devuelve el estado de ligas/fuerza relativa del alumno para el entrenador."""
+    if current_user.rol != "entrenador":
+        raise HTTPException(status_code=403, detail="Sólo entrenadores")
+
+    alumno = db.query(models.Alumno).filter(
+        models.Alumno.id_usuario == id_alumno,
+        models.Alumno.id_entrenador == current_user.id_usuario
+    ).first()
+    if not alumno:
+        raise HTTPException(status_code=404, detail="Alumno no encontrado o no autorizado")
+
+    peso_corporal = alumno.peso_corporal_actual or 70.0
+
+    MAPEO_PILARES = {
+        "Press Banca": "Press Banca",
+        "Sentadilla": "Sentadilla",
+        "Peso Muerto": "Peso Muerto",
+        "Press Militar": "Press Militar",
+        "Dominadas": "Dominadas"
+    }
+
+    result = []
+    for pilar, nombre_largo in MAPEO_PILARES.items():
+        ejercicio = db.query(models.Ejercicio).filter(models.Ejercicio.nombre == nombre_largo).first()
+        if not ejercicio:
+            continue
+
+        historial = db.query(models.HistorialEjercicioAlumno).filter(
+            models.HistorialEjercicioAlumno.id_alumno == id_alumno,
+            models.HistorialEjercicioAlumno.id_ejercicio == ejercicio.id_ejercicio
+        ).first()
+
+        e1rm_actual = historial.last_e1rm if historial else 0.0
+        multiplicador_actual = e1rm_actual / peso_corporal if peso_corporal > 0 else 0.0
+
+        umbral_alcanzado = db.query(models.GamificacionUmbral).filter(
+            models.GamificacionUmbral.ejercicio_nombre == pilar,
+            models.GamificacionUmbral.multiplicador_requerido <= multiplicador_actual
+        ).order_by(models.GamificacionUmbral.multiplicador_requerido.desc()).first()
+
+        nivel_actual = umbral_alcanzado.nivel_nombre if umbral_alcanzado else "Sin Nivel"
+        subnivel_actual = umbral_alcanzado.subnivel if umbral_alcanzado else 0
+
+        proximo_umbral = db.query(models.GamificacionUmbral).filter(
+            models.GamificacionUmbral.ejercicio_nombre == pilar,
+            models.GamificacionUmbral.multiplicador_requerido > multiplicador_actual
+        ).order_by(models.GamificacionUmbral.multiplicador_requerido.asc()).first()
+
+        peso_faltante = 0.0
+        proximo_nivel = None
+        proximo_subnivel = None
+
+        if proximo_umbral:
+            e1rm_necesario = proximo_umbral.multiplicador_requerido * peso_corporal
+            peso_faltante = e1rm_necesario - e1rm_actual
+            proximo_nivel = proximo_umbral.nivel_nombre
+            proximo_subnivel = proximo_umbral.subnivel
+
+        auditoria = db.query(models.LogLigaAlumno).filter(
+            models.LogLigaAlumno.id_alumno == id_alumno,
+            models.LogLigaAlumno.ejercicio_nombre == pilar,
+            models.LogLigaAlumno.estado_validacion == "pendiente_auditoria"
+        ).first()
+
+        result.append({
+            "ejercicio_nombre": pilar,
+            "e1rm_actual": e1rm_actual,
+            "multiplicador_actual": multiplicador_actual,
+            "nivel_actual": nivel_actual,
+            "subnivel_actual": subnivel_actual,
+            "peso_faltante_proximo_nivel": max(0.0, peso_faltante),
+            "proximo_nivel": proximo_nivel,
+            "proximo_subnivel": proximo_subnivel,
+            "is_pending_audit": auditoria is not None
+        })
+
+    return result
+
+
+@router.get("/students/{id_alumno}/history")
+def get_student_history_for_coach(
+    id_alumno: str,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user)
+):
+    """Devuelve el historial de sesiones del alumno para el entrenador."""
+    if current_user.rol != "entrenador":
+        raise HTTPException(status_code=403, detail="Sólo entrenadores")
+
+    alumno = db.query(models.Alumno).filter(
+        models.Alumno.id_usuario == id_alumno,
+        models.Alumno.id_entrenador == current_user.id_usuario
+    ).first()
+    if not alumno:
+        raise HTTPException(status_code=404, detail="Alumno no encontrado o no autorizado")
+
+    from sqlalchemy.orm import joinedload
+
+    sesiones = db.query(models.EntrenamientoSesion).options(
+        joinedload(models.EntrenamientoSesion.sets).joinedload(models.EntrenamientoSetReal.rutina_ejercicio).joinedload(models.RutinaEjercicio.ejercicio),
+        joinedload(models.EntrenamientoSesion.sets).joinedload(models.EntrenamientoSetReal.rutina_ejercicio).joinedload(models.RutinaEjercicio.dia)
+    ).filter(
+        models.EntrenamientoSesion.id_alumno == id_alumno,
+        models.EntrenamientoSesion.estado == "completado"
+    ).order_by(models.EntrenamientoSesion.fecha_fin.desc()).all()
+
+    for sesion in sesiones:
+        if sesion.sets and sesion.sets[0].rutina_ejercicio and sesion.sets[0].rutina_ejercicio.dia:
+            sesion.nombre_dia = sesion.sets[0].rutina_ejercicio.dia.nombre_dia
+
+    return sesiones
+
+
 # ==========================================
 # ENDPOINTS DE FINANZAS Y SUSPENSIÓN
 # ==========================================

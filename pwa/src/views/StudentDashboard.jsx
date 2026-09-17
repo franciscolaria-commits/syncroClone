@@ -24,12 +24,12 @@ export default function StudentDashboard() {
   const [phoneInput, setPhoneInput] = useState('');
   const [isUpdatingPhone, setIsUpdatingPhone] = useState(false);
 
-  const { data: profile, isLoading: loadingProfile } = useQuery({
+  const { data: profile, isLoading: loadingProfile, isError: profileError, error: profileErrorData, refetch: refetchProfile } = useQuery({
     queryKey: ['studentProfile', 'v2'],
     queryFn: () => api.get("/api/v1/students/profile"),
-    onError: (err) => {
-      if (err.message.includes("401")) logout();
-    }
+    retry: 2,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
+    staleTime: 1000 * 60 * 5,
   });
 
   const { data: routine, isLoading: loadingRoutine } = useQuery({
@@ -40,18 +40,50 @@ export default function StudentDashboard() {
 
   const { data: stats } = useQuery({
     queryKey: ['studentStats'],
-    queryFn: () => api.get('/api/v1/students/me/stats')
+    queryFn: () => api.get('/api/v1/students/me/stats'),
+    retry: false
   });
 
+  // Handle 401 errors (React Query v5 compatible)
+  if (profileErrorData?.message?.includes('401') || profileErrorData?.message?.includes('Sesión expirada')) {
+    logout();
+    return null;
+  }
+
   if (loadingProfile) {
-    return <div className="min-h-screen bg-zinc-950 flex items-center justify-center text-zinc-400 font-mono uppercase tracking-widest">Cargando...</div>;
+    return (
+      <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center gap-4">
+        <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-zinc-400 font-mono uppercase tracking-widest text-xs">Cargando perfil...</p>
+      </div>
+    );
   }
 
   const isSuspended = profile?.estado_activo === false || (profile?.data && profile.data.estado_activo === false);
   const isBlockedByPayment = profile?.bloqueado_por_pago || (profile?.data && profile.data.bloqueado_por_pago);
 
-  if (!profile && !loadingProfile) {
-    return <div className="text-white p-10">ERROR: Profile no cargó. ¿Error 500 del backend?</div>;
+  if (profileError && !profile) {
+    return (
+      <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center gap-6 p-6">
+        <div className="glass-card rounded-2xl p-8 border border-zinc-800 max-w-sm w-full text-center flex flex-col items-center gap-4">
+          <div className="w-12 h-12 bg-red-500/20 text-red-400 rounded-full flex items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+          </div>
+          <h2 className="text-white font-bold text-lg">Error de conexión</h2>
+          <p className="text-zinc-400 text-sm">No se pudo cargar tu perfil. Verificá tu conexión a internet e intentá de nuevo.</p>
+          <p className="text-zinc-600 text-xs font-mono">{profileErrorData?.message || 'Error desconocido'}</p>
+          <button
+            onClick={() => refetchProfile()}
+            className="w-full bg-emerald-500 hover:bg-emerald-600 text-black font-bold text-sm py-3 rounded-xl transition-colors uppercase tracking-widest"
+          >
+            Reintentar
+          </button>
+          <button onClick={logout} className="text-xs text-zinc-500 hover:text-red-400 transition-colors uppercase tracking-widest">
+            Cerrar sesión
+          </button>
+        </div>
+      </div>
+    );
   }
 
   if (isSuspended) {

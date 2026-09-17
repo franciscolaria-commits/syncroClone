@@ -21,7 +21,7 @@ class Entrenador(Base):
     especialidad = Column(String)
     biografia = Column(String)
     anios_experiencia = Column(Integer)
-    url_foto_perfil = Column(String) # Se alojarÃƒÂ¡ en Cloudflare R2
+    url_foto_perfil = Column(String) # Se alojara en Cloudflare R2
     limite_alumnos = Column(Integer, default=10, nullable=False)
     fecha_vencimiento = Column(DateTime, nullable=True)
     estado_financiero = Column(String, default="activo", nullable=False) # 'activo', 'suspendido'
@@ -33,7 +33,7 @@ class Entrenador(Base):
     tipo_cobro_alumnos = Column(String, nullable=True) # 'fijo' o 'por_clase' etc.
     precio_cobro_alumnos = Column(Float, nullable=True)
     
-    # ConfiguraciÃƒÂ³n de gestiÃƒÂ³n y pagos
+    # Configuración de gestión y pagos
     config_estado_alumno_default = Column(String, default="activo", nullable=False) # 'activo' o 'suspendido'
     config_vencimiento_tipo = Column(String, default="individual", nullable=False) # 'fijo' o 'individual'
     config_vencimiento_dia = Column(Integer, nullable=True) # 1-31
@@ -209,7 +209,8 @@ class PagoAlumno(Base):
     
     alumno = relationship("Alumno")
     entrenador = relationship("Entrenador")
-
+
+
 
 class EvaluacionFisica(Base):
     __tablename__ = "evaluaciones_fisicas"

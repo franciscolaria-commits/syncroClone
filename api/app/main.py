@@ -32,8 +32,21 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
 
-FRONTEND_URL = os.getenv("FRONTEND_URL")
-allowed_origins = [FRONTEND_URL] if FRONTEND_URL else ["http://localhost:5173", "http://localhost:3000"]
+FRONTEND_URL = os.getenv("FRONTEND_URL", "")
+# Build allowed origins list - support multiple origins and PWA/mobile installs
+allowed_origins = []
+if FRONTEND_URL:
+    # Support comma-separated list of origins (e.g. "https://app.com,https://www.app.com")
+    for origin in FRONTEND_URL.split(","):
+        origin = origin.strip()
+        if origin:
+            allowed_origins.append(origin)
+
+# Always allow localhost for dev
+allowed_origins += ["http://localhost:5173", "http://localhost:3000"]
+
+# Deduplicate
+allowed_origins = list(dict.fromkeys(allowed_origins))
 
 # Configurar middleware CORS para comunicación cruzada (Frontend PWA a Backend API)
 app.add_middleware(
