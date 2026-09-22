@@ -5,6 +5,7 @@ import WorkoutBuilder from './WorkoutBuilder.jsx';
 import StudentProgress from './StudentProgress.jsx';
 import FinancesPanel from '../components/FinancesPanel.jsx';
 import TutorialPanel from '../components/TutorialPanel.jsx';
+import ImportRoutineModal from '../components/ImportRoutineModal.jsx';
 import { Menu, X, Copy, Download, ChevronDown, ChevronUp } from "lucide-react";
 
 export default function CoachDashboard() {
@@ -18,6 +19,7 @@ export default function CoachDashboard() {
   const [selectedStudentId, setSelectedStudentId] = useState(null);
   const [email, setEmail] = useState('');
   const [students, setStudents] = useState([]);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [invitations, setInvitations] = useState([]);
   const [exercises, setExercises] = useState([]);
   const [routines, setRoutines] = useState([]);
@@ -294,6 +296,7 @@ export default function CoachDashboard() {
           </button>
           <button onClick={() => setActivePanel('tutorial')} className={`px-3 py-2 rounded-xl text-xs font-bold transition-all ${activePanel === 'tutorial' ? 'bg-blue-600 text-white' : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'} ml-2`}>Cómo usar</button>
           <button onClick={() => { setEditingRoutine(null); setIsBuildingRoutine(true); }} className="px-3 py-2 rounded-xl text-xs font-bold transition-all bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/20 ml-2">Crear Rutina</button>
+          <button onClick={() => setShowImportModal(true)} className="px-3 py-2 rounded-xl text-xs font-bold transition-all bg-amber-500 hover:bg-amber-400 text-black shadow-lg shadow-amber-500/20 ml-1" title="Importar rutina desde Excel, CSV, Word o PDF">Importar Rutina</button>
           <button onClick={() => setActivePanel('profile')} className={`px-3 py-2 rounded-xl text-xs font-bold transition-all ${activePanel === 'profile' ? 'bg-blue-600 text-white' : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'} ml-2`}>Perfil</button>
           <button onClick={logout} className="px-3 py-2 rounded-xl text-xs font-bold text-red-400 hover:bg-red-500/10 transition-all border border-red-500/10 ml-2">Salir</button>
         </nav>
@@ -1004,6 +1007,13 @@ export default function CoachDashboard() {
           initialData={editingRoutine}
           onClose={() => { setIsBuildingRoutine(false); setEditingRoutine(null); }} 
           onSaveSuccess={() => { setIsBuildingRoutine(false); setEditingRoutine(null); loadData(); }} 
+        />
+      )}
+      {/* Import Routine Modal */}
+      {showImportModal && (
+        <ImportRoutineModal
+          students={students}
+          onClose={() => setShowImportModal(false)}
         />
       )}
     </div>

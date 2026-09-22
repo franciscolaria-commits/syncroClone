@@ -958,3 +958,208 @@ def suspend_student(
         
     db.commit()
     return {"status": "ok", "estado_activo": alumno.estado_activo}
+
+
+# ==========================================
+# ENDPOINT DE IMPORTACIÓN DE RUTINAS
+# ==========================================
+
+from pydantic import BaseModel
+
+class ImportSetItem(BaseModel):
+    peso_usado: float = 0.0
+    reps_logradas: int = 0
+
+class ImportEjercicioItem(BaseModel):
+    nombre_ejercicio: str
+    series: int = 3
+    reps_objetivo: str = "10"
+    peso_sugerido: float = 0.0
+    rir: int | None = None
+    historial: list[ImportSetItem] = []
+
+class ImportDiaItem(BaseModel):
+    nombre_dia: str
+    ejercicios: list[ImportEjercicioItem] = []
+
+class ImportRoutineRequest(BaseModel):
+    id_alumno: str
+    nombre_rutina: str
+    frecuencia_semanal: int = 3
+    asignar_al_alumno: bool = True
+    dias: list[ImportDiaItem] = []
+
+@router.post("/import_routine")
+def import_routine(
+    data: ImportRoutineRequest,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user)
+):
+    """
+    Importa una rutina completa con historial desde el frontend (archivo parseado).
+    Crea ejercicios si no existen, construye la rutina, y registra el historial.
+    """
+    if current_user.rol != "entrenador":
+        raise HTTPException(status_code=403, detail="Solo entrenadores pueden importar rutinas")
+
+    # 1. Verificar que el alumno pertenece a este entrenador
+    alumno = db.query(models.Alumno).filter(
+        models.Alumno.id_usuario == data.id_alumno,
+        models.Alumno.id_entrenador == current_user.id_usuario
+    ).first()
+    if not alumno:
+        raise HTTPException(status_code=404, detail="Alumno no encontrado o no autorizado")
+
+    created_exercises = []
+    reused_exercises = []
+    exercise_id_map = {}  # nombre_lower -> id_ejercicio
+
+    # 2. Resolver/crear ejercicios
+    for dia in data.dias:
+        for ex_item in dia.ejercicios:
+            nombre_lower = ex_item.nombre_ejercicio.strip().lower()
+            if nombre_lower in exercise_id_map:
+                continue
+
+            # Buscar ejercicio global (id_entrenador = null)
+            ejercicio_global = db.query(models.Ejercicio).filter(
+                models.Ejercicio.id_entrenador == None,
+                models.Ejercicio.nombre.ilike(ex_item.nombre_ejercicio.strip())
+            ).first()
+
+            if ejercicio_global:
+                exercise_id_map[nombre_lower] = ejercicio_global.id_ejercicio
+                reused_exercises.append(ejercicio_global.nombre)
+                continue
+
+            # Buscar ejercicio propio del entrenador
+            ejercicio_propio = db.query(models.Ejercicio).filter(
+                models.Ejercicio.id_entrenador == current_user.id_usuario,
+                models.Ejercicio.nombre.ilike(ex_item.nombre_ejercicio.strip())
+            ).first()
+
+            if ejercicio_propio:
+                exercise_id_map[nombre_lower] = ejercicio_propio.id_ejercicio
+                reused_exercises.append(ejercicio_propio.nombre)
+                continue
+
+            # Crear ejercicio nuevo del entrenador
+            nuevo = models.Ejercicio(
+                id_ejercicio=uuid.uuid4(),
+                nombre=ex_item.nombre_ejercicio.strip(),
+                descripcion="Importado desde archivo",
+                categoria="General",
+                id_entrenador=current_user.id_usuario
+            )
+            db.add(nuevo)
+            db.flush()  # Para obtener el id sin commit
+            exercise_id_map[nombre_lower] = nuevo.id_ejercicio
+            created_exercises.append(nuevo.nombre)
+
+    # 3. Crear la rutina
+    rutina = models.Rutina(
+        id_rutina=uuid.uuid4(),
+        id_entrenador=current_user.id_usuario,
+        nombre_rutina=data.nombre_rutina.strip(),
+        frecuencia_semanal=data.frecuencia_semanal,
+        is_active=True
+    )
+    db.add(rutina)
+    db.flush()
+
+    # 4. Crear los días y ejercicios de la rutina
+    rutina_ejercicio_map = {}  # (dia_idx, nombre_lower) -> id_rutina_ejercicio
+
+    for dia_idx, dia in enumerate(data.dias):
+        nombre_dia = dia.nombre_dia.strip() if dia.nombre_dia.strip() else f"Día {dia_idx + 1}"
+        rutina_dia = models.RutinaDia(
+            id_dia=uuid.uuid4(),
+            id_rutina=rutina.id_rutina,
+            nombre_dia=nombre_dia,
+            orden=dia_idx
+        )
+        db.add(rutina_dia)
+        db.flush()
+
+        for ex_idx, ex_item in enumerate(dia.ejercicios):
+            nombre_lower = ex_item.nombre_ejercicio.strip().lower()
+            id_ejercicio = exercise_id_map.get(nombre_lower)
+            if not id_ejercicio:
+                continue
+
+            # Parsear reps_objetivo: si es "8-10" tomamos el primer número
+            reps_num = 10
+            try:
+                reps_str = str(ex_item.reps_objetivo).split('-')[0].strip()
+                reps_num = int(float(reps_str))
+            except (ValueError, AttributeError):
+                reps_num = 10
+
+            rutina_ejercicio = models.RutinaEjercicio(
+                id_rutina_ejercicio=uuid.uuid4(),
+                id_dia=rutina_dia.id_dia,
+                id_ejercicio=id_ejercicio,
+                series_esperadas=max(1, ex_item.series),
+                reps_esperadas=max(1, reps_num),
+                orden=ex_idx,
+                nota_entrenador=f"RIR: {ex_item.rir}" if ex_item.rir is not None else None
+            )
+            db.add(rutina_ejercicio)
+            db.flush()
+            rutina_ejercicio_map[(dia_idx, nombre_lower)] = rutina_ejercicio.id_rutina_ejercicio
+
+    # 5. Crear historial si hay sets con datos
+    sesiones_creadas = 0
+    for dia_idx, dia in enumerate(data.dias):
+        for ex_item in dia.ejercicios:
+            nombre_lower = ex_item.nombre_ejercicio.strip().lower()
+            id_re = rutina_ejercicio_map.get((dia_idx, nombre_lower))
+            if not id_re or not ex_item.historial:
+                continue
+
+            # Filtrar sets con datos reales
+            sets_validos = [s for s in ex_item.historial if s.reps_logradas > 0]
+            if not sets_validos:
+                continue
+
+            # Crear una sesión histórica por cada ejercicio con datos
+            sesion = models.EntrenamientoSesion(
+                id_sesion=uuid.uuid4(),
+                id_alumno=data.id_alumno,
+                id_rutina=rutina.id_rutina,
+                fecha_inicio=datetime.utcnow(),
+                fecha_fin=datetime.utcnow(),
+                estado="completado"
+            )
+            db.add(sesion)
+            db.flush()
+            sesiones_creadas += 1
+
+            for set_item in sets_validos:
+                set_real = models.EntrenamientoSetReal(
+                    id_set=uuid.uuid4(),
+                    id_sesion=sesion.id_sesion,
+                    id_rutina_ejercicio=id_re,
+                    peso_usado=max(0.0, set_item.peso_usado),
+                    reps_logradas=max(0, set_item.reps_logradas),
+                    rpe=None
+                )
+                db.add(set_real)
+
+    # 6. Asignar rutina al alumno si se indicó
+    if data.asignar_al_alumno:
+        alumno.id_rutina_activa = rutina.id_rutina
+
+    db.commit()
+
+    return {
+        "success": True,
+        "id_rutina": str(rutina.id_rutina),
+        "nombre_rutina": rutina.nombre_rutina,
+        "ejercicios_creados": created_exercises,
+        "ejercicios_reutilizados": reused_exercises,
+        "dias_creados": len(data.dias),
+        "sesiones_historial_creadas": sesiones_creadas,
+        "asignada_al_alumno": data.asignar_al_alumno
+    }
+

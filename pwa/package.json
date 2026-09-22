@@ -20,13 +20,17 @@
     "idb-keyval": "^6.2.5",
     "jimp": "^1.6.1",
     "lucide-react": "^1.21.0",
+    "mammoth": "^1.12.3",
+    "papaparse": "^5.7.0",
+    "pdfjs-dist": "^6.3.289",
     "postcss": "^8.5.15",
     "react": "^19.2.6",
     "react-confetti": "^6.4.0",
     "react-dom": "^19.2.6",
     "react-router-dom": "^7.16.0",
     "recharts": "^3.8.1",
-    "tailwindcss": "^4.3.0"
+    "tailwindcss": "^4.3.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
