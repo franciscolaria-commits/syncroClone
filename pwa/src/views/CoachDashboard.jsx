@@ -322,6 +322,7 @@ export default function CoachDashboard() {
             </button>
             <button onClick={() => { setActivePanel('tutorial'); setIsMobileMenuOpen(false); }} className={`w-full text-left py-3 px-4 rounded-xl text-sm font-bold transition-all ${activePanel === 'tutorial' ? 'bg-blue-600 text-white' : 'text-zinc-400 hover:bg-white/5'}`}>Cómo usar</button>
             <button onClick={() => { setEditingRoutine(null); setIsBuildingRoutine(true); setIsMobileMenuOpen(false); }} className="w-full text-left py-3 px-4 rounded-xl text-sm font-bold transition-all bg-indigo-600 hover:bg-indigo-500 text-white">Crear Rutina</button>
+            <button onClick={() => { setShowImportModal(true); setIsMobileMenuOpen(false); }} className="w-full text-left py-3 px-4 rounded-xl text-sm font-bold transition-all bg-amber-500 hover:bg-amber-400 text-black">Importar Rutina</button>
             <button onClick={() => { setActivePanel('profile'); setIsMobileMenuOpen(false); }} className={`w-full text-left py-3 px-4 rounded-xl text-sm font-bold transition-all ${activePanel === 'profile' ? 'bg-blue-600 text-white' : 'text-zinc-400 hover:bg-white/5'}`}>Perfil</button>
             <button onClick={() => { logout(); setIsMobileMenuOpen(false); }} className="w-full text-left py-3 px-4 rounded-xl text-sm font-bold text-red-400 hover:bg-red-500/10">Salir</button>
           </div>
