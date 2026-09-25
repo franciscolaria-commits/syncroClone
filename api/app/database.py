@@ -11,18 +11,21 @@ DIRECT_URL = os.getenv("DIRECT_URL")
 
 def _normalize_db_url(url: str) -> str:
     """
-    Render puede entregar DATABASE_URL con el scheme 'postgresql+psycopg' (psycopg3).
-    Como usamos psycopg2-binary, normalizamos siempre al scheme correcto.
-    Tambien maneja el alias antiguo 'postgres://' de Heroku/Render.
+    Normaliza la URL de base de datos para usar psycopg3 (psycopg[binary]).
+    Render puede entregar cualquiera de estos formatos:
+      - postgresql+psycopg://...   (ya psycopg3, OK)
+      - postgresql+psycopg2://...  (psycopg2, convertir a psycopg3)
+      - postgresql://...           (sin driver, psycopg3 lo toma)
+      - postgres://...             (alias Heroku/Render, normalizar)
     """
     if not url:
         return url
-    # psycopg3 schemes -> psycopg2
-    url = url.replace("postgresql+psycopg://", "postgresql+psycopg2://")
-    url = url.replace("postgres+psycopg://",   "postgresql+psycopg2://")
-    # 'postgres://' es alias antiguo de Heroku/Render -> normalizar a postgresql://
+    # Alias antiguo de Heroku/Render: postgres:// -> postgresql://
     if url.startswith("postgres://"):
         url = "postgresql://" + url[len("postgres://"):]
+    # Forzar psycopg2 a psycopg3 por si viene así
+    url = url.replace("postgresql+psycopg2://", "postgresql+psycopg://")
+    url = url.replace("postgres+psycopg2://",   "postgresql+psycopg://")
     return url
 
 
@@ -36,7 +39,7 @@ else:
     POSTGRES_PORT     = os.getenv("POSTGRES_PORT", "5432")
     POSTGRES_HOST     = os.getenv("POSTGRES_HOST", "localhost")
     SQLALCHEMY_DATABASE_URL = (
-        f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}"
+        f"postgresql+psycopg://{POSTGRES_USER}:{POSTGRES_PASSWORD}"
         f"@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
     )
     ALEMBIC_DATABASE_URL = SQLALCHEMY_DATABASE_URL
