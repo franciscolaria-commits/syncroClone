@@ -22,6 +22,8 @@ export default function CoachDashboard() {
   const [showImportModal, setShowImportModal] = useState(false);
   const [invitations, setInvitations] = useState([]);
   const [exercises, setExercises] = useState([]);
+  const [exerciseSearchQuery, setExerciseSearchQuery] = useState('');
+  const [exerciseCategoryFilter, setExerciseCategoryFilter] = useState('Todas');
   const [routines, setRoutines] = useState([]);
   const [profile, setProfile] = useState({});
   const [editingRoutine, setEditingRoutine] = useState(null);
@@ -651,6 +653,31 @@ export default function CoachDashboard() {
               </div>
             </div>
 
+            {/* Filtros de Búsqueda */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <input 
+                type="text" 
+                placeholder="Buscar ejercicio por nombre..." 
+                value={exerciseSearchQuery}
+                onChange={(e) => setExerciseSearchQuery(e.target.value)}
+                className="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-sm text-zinc-200 outline-none focus:border-emerald-500 transition-colors"
+              />
+              <select 
+                value={exerciseCategoryFilter}
+                onChange={(e) => setExerciseCategoryFilter(e.target.value)}
+                className="sm:w-48 bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-sm text-zinc-200 outline-none focus:border-emerald-500 transition-colors"
+              >
+                <option value="Todas">Todas las categorías</option>
+                <option value="Pecho">Pecho</option>
+                <option value="Espalda">Espalda</option>
+                <option value="Piernas">Piernas</option>
+                <option value="Hombros">Hombros</option>
+                <option value="Brazos">Brazos</option>
+                <option value="Core">Core</option>
+                <option value="General">General</option>
+              </select>
+            </div>
+
             <div className="bg-zinc-900/60 border border-zinc-800/40 p-4 rounded-xl flex flex-col gap-4">
               <h3 className="text-sm font-bold text-emerald-500 uppercase tracking-widest">Crear Ejercicio Personalizado</h3>
               <form onSubmit={handleCreateExercise} className="flex flex-col gap-3">
@@ -693,7 +720,11 @@ export default function CoachDashboard() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
-               {exercises.map(exe => (
+               {exercises.filter(exe => {
+                  const matchesSearch = exe.nombre.toLowerCase().includes(exerciseSearchQuery.toLowerCase());
+                  const matchesCategory = exerciseCategoryFilter === 'Todas' || (exe.categoria || 'General') === exerciseCategoryFilter;
+                  return matchesSearch && matchesCategory;
+                }).map(exe => (
                  <div key={exe.id_ejercicio} className="p-4 rounded-xl bg-zinc-900/60 border border-zinc-800/40 flex flex-col justify-between items-start relative overflow-hidden gap-3">
                    {exe.id_entrenador && (
                      <div className="absolute top-0 right-0 bg-emerald-600/20 text-emerald-500 text-[9px] font-black uppercase px-2 py-1 border-b border-l border-emerald-500/20 rounded-bl-lg">
