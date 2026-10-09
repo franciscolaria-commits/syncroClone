@@ -251,6 +251,10 @@ export default function FinancesPanel({ students, api, loadStudents, modal, prof
     if (filter === 'vencidos') return !p.pagado && p.dias_para_vencer !== null && p.dias_para_vencer < 0;
     if (filter === 'pase_libre') return p.tipo_membresia === 'pase_libre';
     if (filter === 'por_clases') return p.tipo_membresia === 'por_clases';
+    if (filter.startsWith('pkg_')) {
+      const pkgId = filter.split('_')[1];
+      return p.tipo_membresia === 'por_clases' && p.gym_paquete_id === pkgId;
+    }
     return true; // todos
   });
 
@@ -336,13 +340,6 @@ export default function FinancesPanel({ students, api, loadStudents, modal, prof
                   {pkg.clases} Clases
                 </button>
               ))}
-              {/* Fallback para alumnos por clases sin paquete asignado */}
-              {(gymTipoCobro === 'por_clases' || gymTipoCobro === 'ambos') && (
-                <button onClick={() => setFilter('por_clases_otros')}
-                  className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors whitespace-nowrap ${filter === 'por_clases_otros' ? 'bg-amber-500/20 text-amber-400' : 'text-zinc-400 hover:bg-zinc-800/50'}`}>
-                  Otras Clases
-                </button>
-              )}
             </div>
           )}
           </section>
