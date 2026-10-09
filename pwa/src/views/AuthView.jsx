@@ -259,7 +259,7 @@ export default function AuthView({ onLoginSuccess }) {
             </div>
             <div>
               <label className="text-xs text-zinc-400 font-semibold block mb-1">Fecha de Nacimiento</label>
-              <input type="date" id="reg-student-birthdate" required className="w-full border border-zinc-800 bg-zinc-900 rounded-xl px-4 py-3 text-sm text-zinc-200 focus:outline-none focus:border-indigo-500" />
+              <input type="date" id="reg-student-birthdate" required className="w-full border border-zinc-800 bg-zinc-900 rounded-xl px-4 py-3 text-sm text-zinc-200 focus:outline-none focus:border-indigo-500" style={{ colorScheme: 'dark' }} onClick={(e) => { try { e.target.showPicker() } catch(err) {} }} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
