@@ -197,6 +197,14 @@ export default function AuthView({ onLoginSuccess }) {
                 </button>
               </div>
             </div>
+
+            <div className="border-t border-zinc-800/80 pt-4 mt-1 flex flex-col gap-1.5">
+              <h3 className="text-sm font-bold text-zinc-200">Privacidad de tus datos</h3>
+              <p className="text-xs text-zinc-400 leading-relaxed">
+                Tu contraseña nunca será visible para nadie.
+              </p>
+            </div>
+
             <button type="submit" disabled={loadingAction === 'registerCoach'} className="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 font-bold active:scale-95 transition-all text-sm mt-2 shadow-lg shadow-blue-500/10 disabled:opacity-50">
               {loadingAction === 'registerCoach' ? 'Cargando...' : 'Registrarse como Entrenador'}
             </button>
@@ -330,7 +338,7 @@ export default function AuthView({ onLoginSuccess }) {
             <div className="border-t border-zinc-800/80 pt-4 mt-1 flex flex-col gap-1.5">
               <h3 className="text-sm font-bold text-zinc-200">Privacidad de tus datos</h3>
               <p className="text-xs text-zinc-400 leading-relaxed">
-                Tu email será visible para tu entrenador vinculado. Tu teléfono podrá utilizarse para enviar recordatorios de pago. Tu contraseña nunca será visible para el entrenador.
+                Tu email será visible para tu entrenador vinculado. Tu teléfono podrá utilizarse para enviar recordatorios de pago. Tu contraseña nunca será visible para nadie.
               </p>
             </div>
 
