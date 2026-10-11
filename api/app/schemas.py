@@ -108,7 +108,7 @@ class AlumnoCreate(AlumnoBase):
     password: str = Field(..., min_length=6)
     fecha_nacimiento: date
     codigo_invitacion: str = Field(..., description="UUIDv4 de invitación o Email del Entrenador")
-    telefono: str = Field(..., description="WhatsApp con código de país")
+    telefono: Optional[str] = Field(None, description="WhatsApp con código de país")
     tipo_membresia: Optional[str] = None
     clases_compradas: Optional[int] = None
     gym_paquete_id: Optional[str] = None

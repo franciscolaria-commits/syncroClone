@@ -122,7 +122,7 @@ def register_student(student_data: AlumnoCreate, db: Session = Depends(get_db)):
             email=student_data.email.lower(),
             password_hash=hashed_password,
             rol="alumno",
-            telefono=student_data.telefono
+            telefono=student_data.telefono.strip() if student_data.telefono and student_data.telefono.strip() else None
         )
         db.add(nuevo_usuario)
         db.flush()

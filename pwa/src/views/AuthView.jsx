@@ -80,7 +80,8 @@ export default function AuthView({ onLoginSuccess }) {
     const birthdate = e.target['reg-student-birthdate'].value;
     const weight = e.target['reg-student-weight'].value;
     const goal = e.target['reg-student-goal'].value;
-    const phone = e.target['reg-student-phone'].value.trim();
+    const rawPhone = e.target['reg-student-phone'] ? e.target['reg-student-phone'].value.trim() : '';
+    const phone = rawPhone || null;
     setLoadingAction('registerStudent');
     try {
       const tipoMembresiaEl = e.target['reg-student-membresia'];
@@ -212,12 +213,12 @@ export default function AuthView({ onLoginSuccess }) {
         <div className="glass-card rounded-2xl p-6 shadow-xl flex flex-col gap-4">
           <div className="flex items-center gap-2">
             <span className="h-2.5 w-2.5 rounded-full bg-indigo-500 animate-ping"></span>
-            <h2 className="text-lg font-bold text-zinc-100">Registro de Alumnos</h2>
+            <h2 className="text-lg font-bold text-zinc-100">Crear cuenta en Syncro</h2>
           </div>
           <p className="text-xs text-zinc-400 leading-relaxed">Vincula tu cuenta usando el código o email de tu entrenador.</p>
           <form onSubmit={handleRegisterStudent} className="flex flex-col gap-3">
             <div>
-              <label className="text-xs text-zinc-400 font-semibold block mb-1">Email o Código de Invitación del Coach</label>
+              <label className="text-xs text-zinc-400 font-semibold block mb-1">Email o Código de Invitación del Coach *</label>
               <input 
                 type="text" 
                 id="reg-student-code" 
@@ -241,24 +242,24 @@ export default function AuthView({ onLoginSuccess }) {
               />
             </div>
             <div>
-              <label className="text-xs text-zinc-400 font-semibold block mb-1">Email</label>
-              <input type="email" id="reg-student-email" required placeholder="atleta@correo.com" className="w-full border rounded-xl px-4 py-3 text-sm text-zinc-200" />
+              <label className="text-xs text-zinc-400 font-semibold block mb-1">Email *</label>
+              <input type="email" id="reg-student-email" required placeholder="tu@email.com" className="w-full border rounded-xl px-4 py-3 text-sm text-zinc-200" />
             </div>
             <div>
-              <label className="text-xs text-zinc-400 font-semibold block mb-1">WhatsApp (con código de país)</label>
-              <input type="text" id="reg-student-phone" required placeholder="Ej: 5491123456789" className="w-full border rounded-xl px-4 py-3 text-sm text-zinc-200" />
+              <label className="text-xs text-zinc-400 font-semibold block mb-1">Teléfono <span className="text-zinc-500 font-normal">(opcional)</span></label>
+              <input type="text" id="reg-student-phone" placeholder="+54 9 ..." className="w-full border rounded-xl px-4 py-3 text-sm text-zinc-200" />
             </div>
             <div>
-              <label className="text-xs text-zinc-400 font-semibold block mb-1">Contraseña (mínimo 6 caracteres)</label>
+              <label className="text-xs text-zinc-400 font-semibold block mb-1">Contraseña *</label>
               <div className="relative">
-                <input type={showPassword ? "text" : "password"} id="reg-student-password" required minLength="6" placeholder="Mínimo 6 caracteres" className="w-full border rounded-xl px-4 py-3 text-sm text-zinc-200 pr-10" />
+                <input type={showPassword ? "text" : "password"} id="reg-student-password" required minLength="6" placeholder="••••••••" className="w-full border rounded-xl px-4 py-3 text-sm text-zinc-200 pr-10" />
                 <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300">
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
             </div>
             <div>
-              <label className="text-xs text-zinc-400 font-semibold block mb-1">Fecha de Nacimiento 📅</label>
+              <label className="text-xs text-zinc-400 font-semibold block mb-1">Fecha de Nacimiento 📅 *</label>
               <div className="relative">
                 <input 
                   type="text" 
@@ -325,6 +326,17 @@ export default function AuthView({ onLoginSuccess }) {
             )}
               </div>
             )}
+            <p className="text-[11px] text-zinc-500 mt-1">
+              * Campos obligatorios según la configuración actual de la cuenta.
+            </p>
+
+            <div className="border-t border-zinc-800/80 pt-4 mt-1 flex flex-col gap-1.5">
+              <h3 className="text-sm font-bold text-zinc-200">Privacidad de tus datos</h3>
+              <p className="text-xs text-zinc-400 leading-relaxed">
+                Tu email será visible para tu entrenador vinculado. Tu teléfono podrá utilizarse para enviar recordatorios de pago. Tu contraseña nunca será visible para el entrenador.
+              </p>
+            </div>
+
             <button type="submit" disabled={loadingAction === 'registerStudent'} className="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 font-bold active:scale-95 transition-all text-sm mt-2 shadow-lg shadow-blue-500/10 disabled:opacity-50">
               {loadingAction === 'registerStudent' ? 'Cargando...' : 'Registrarse como Alumno'}
             </button>
