@@ -124,10 +124,10 @@ const StudentEvaluations = ({ providedStudentId }) => {
       <div className="flex gap-2 mb-6 border-b border-zinc-800 pb-2">
         <button onClick={() => {setActiveTab('fisico'); setShowForm(false);}} className={`px-4 py-2 rounded text-xs font-bold uppercase transition-colors ${activeTab === 'fisico' ? 'bg-zinc-800 text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'}`}>Físico</button>
         <button onClick={() => {setActiveTab('cuerpo'); setShowForm(false);}} className={`px-4 py-2 rounded text-xs font-bold uppercase transition-colors ${activeTab === 'cuerpo' ? 'bg-zinc-800 text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'}`}>Cuerpo</button>
-        <button onClick={() => {setActiveTab('fotos'); setShowForm(false);}} className={`px-4 py-2 rounded text-xs font-bold uppercase transition-colors ${activeTab === 'fotos' ? 'bg-zinc-800 text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'}`}>Fotos</button>
+        {/* Pestaña Fotos oculta en frontend */}
       </div>
 
-      {!showForm && (
+      {!showForm && activeTab !== 'fotos' && (
         <button onClick={() => setShowForm(true)} className="mb-4 bg-emerald-500 text-black px-4 py-2 rounded text-xs font-bold flex items-center gap-2">
           <Plus size={16} /> NUEVO REGISTRO
         </button>
@@ -196,43 +196,7 @@ const StudentEvaluations = ({ providedStudentId }) => {
         </form>
       )}
 
-      {showForm && activeTab === 'fotos' && (
-        <form onSubmit={submitForm} className="bg-zinc-900 border border-zinc-800 p-4 rounded mb-6">
-          <h3 className="font-bold text-emerald-400 mb-4">Registro Visual (Opcional)</h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <label className="border-2 border-dashed border-zinc-700 p-4 rounded text-center cursor-pointer hover:border-emerald-500 transition-colors">
-              <Camera className="mx-auto mb-2 text-zinc-500" />
-              <div className="text-xs text-zinc-400">{formData.url_frente ? 'Imagen cargada' : 'Subir Frente'}</div>
-              <input type="file" className="hidden" accept="image/*" onChange={(e) => handleUploadPhoto(e, 'url_frente')} />
-            </label>
-            <label className="border-2 border-dashed border-zinc-700 p-4 rounded text-center cursor-pointer hover:border-emerald-500 transition-colors">
-              <Camera className="mx-auto mb-2 text-zinc-500" />
-              <div className="text-xs text-zinc-400">{formData.url_perfil ? 'Imagen cargada' : 'Subir Perfil'}</div>
-              <input type="file" className="hidden" accept="image/*" onChange={(e) => handleUploadPhoto(e, 'url_perfil')} />
-            </label>
-            <label className="border-2 border-dashed border-zinc-700 p-4 rounded text-center cursor-pointer hover:border-emerald-500 transition-colors">
-              <Camera className="mx-auto mb-2 text-zinc-500" />
-              <div className="text-xs text-zinc-400">{formData.url_espalda ? 'Imagen cargada' : 'Subir Espalda'}</div>
-              <input type="file" className="hidden" accept="image/*" onChange={(e) => handleUploadPhoto(e, 'url_espalda')} />
-            </label>
-          </div>
-
-          {userRole !== 'entrenador' && (
-          <label className="mt-4 flex items-center gap-2 cursor-pointer text-sm">
-            <input type="checkbox" name="visible_para_entrenador" onChange={handleCheckbox} className="rounded bg-zinc-800 text-emerald-500" />
-            Permitir que mi entrenador vea estas fotos
-          </label>
-          )}
-
-          <div className="mt-4">
-            <button type="submit" disabled={uploading} className="bg-emerald-500 text-black px-4 py-2 font-bold rounded">
-              {uploading ? 'Subiendo imagen...' : 'Guardar Fotos'}
-            </button>
-            <button type="button" onClick={() => setShowForm(false)} className="ml-2 text-zinc-400">Cancelar</button>
-          </div>
-        </form>
-      )}
+      {/* Formulario de fotos oculto en frontend */}
 
       {/* HISTORIAL */}
       {!showForm && activeTab === 'fisico' && (
