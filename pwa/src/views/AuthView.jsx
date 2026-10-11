@@ -280,11 +280,11 @@ export default function AuthView({ onLoginSuccess }) {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs text-zinc-400 font-semibold block mb-1">Peso Corporal (kg)</label>
+                <label className="text-xs text-zinc-400 font-semibold block mb-1">Peso Corporal (kg) <span className="text-zinc-500 font-normal">(opcional)</span></label>
                 <input type="number" step="0.1" id="reg-student-weight" placeholder="Ej: 75.5" className="w-full border rounded-xl px-4 py-3 text-sm text-zinc-200" />
               </div>
               <div>
-                <label className="text-xs text-zinc-400 font-semibold block mb-1">Objetivo</label>
+                <label className="text-xs text-zinc-400 font-semibold block mb-1">Objetivo <span className="text-zinc-500 font-normal">(opcional)</span></label>
                 <input type="text" id="reg-student-goal" placeholder="Ej: Fuerza" className="w-full border rounded-xl px-4 py-3 text-sm text-zinc-200" />
               </div>
             </div>
@@ -326,9 +326,6 @@ export default function AuthView({ onLoginSuccess }) {
             )}
               </div>
             )}
-            <p className="text-[11px] text-zinc-500 mt-1">
-              * Campos obligatorios según la configuración actual de la cuenta.
-            </p>
 
             <div className="border-t border-zinc-800/80 pt-4 mt-1 flex flex-col gap-1.5">
               <h3 className="text-sm font-bold text-zinc-200">Privacidad de tus datos</h3>
