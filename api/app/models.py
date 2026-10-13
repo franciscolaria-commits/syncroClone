@@ -263,6 +263,7 @@ class EvaluacionFisica(Base):
     dominadas_reps = Column(Integer, nullable=True)
     
     observaciones = Column(String, nullable=True)
+    visible_para_entrenador = Column(Boolean, default=True, nullable=False)
     
     alumno = relationship("Alumno")
 
@@ -288,6 +289,7 @@ class ComposicionCorporal(Base):
     perimetro_pierna_i = Column(Float, nullable=True)
     
     observaciones = Column(String, nullable=True)
+    visible_para_entrenador = Column(Boolean, default=True, nullable=False)
     
     alumno = relationship("Alumno")
 

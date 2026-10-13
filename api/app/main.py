@@ -47,6 +47,8 @@ try:
         conn.execute(text("ALTER TABLE alumnos ADD COLUMN IF NOT EXISTS fecha_inicio_paquete DATE"))
         conn.execute(text("ALTER TABLE alumnos ADD COLUMN IF NOT EXISTS vencimiento_estimado_clases DATE"))
         conn.execute(text("ALTER TABLE alumnos ADD COLUMN IF NOT EXISTS gym_paquete_id VARCHAR"))
+        conn.execute(text("ALTER TABLE evaluaciones_fisicas ADD COLUMN IF NOT EXISTS visible_para_entrenador BOOLEAN DEFAULT TRUE"))
+        conn.execute(text("ALTER TABLE composicion_corporal ADD COLUMN IF NOT EXISTS visible_para_entrenador BOOLEAN DEFAULT TRUE"))
         print("Manual DDL (columnas) aplicadas con éxito.")
 except Exception as e:
     print(f"Error aplicando manual DDL: {e}")

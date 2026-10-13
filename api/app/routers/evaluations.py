@@ -38,6 +38,10 @@ def create_physical_eval(
 
     new_eval = EvaluacionFisica(**eval_in.dict(exclude_unset=True))
     new_eval.id_alumno = student_id
+    if current_user.rol == "entrenador":
+        new_eval.visible_para_entrenador = True
+    elif new_eval.visible_para_entrenador is None:
+        new_eval.visible_para_entrenador = True
     if not new_eval.fecha:
         new_eval.fecha = datetime.utcnow()
         
@@ -56,8 +60,10 @@ def get_physical_evals(
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user)
 ):
-    # Verificaciones omitidas por brevedad (asume autorización)
-    return db.query(EvaluacionFisica).filter(EvaluacionFisica.id_alumno == student_id).order_by(desc(EvaluacionFisica.fecha)).all()
+    query = db.query(EvaluacionFisica).filter(EvaluacionFisica.id_alumno == student_id).order_by(desc(EvaluacionFisica.fecha))
+    if current_user.rol == "entrenador":
+        query = query.filter(EvaluacionFisica.visible_para_entrenador == True)
+    return query.all()
 
 @router.delete("/evaluations/physical/{eval_id}")
 def delete_physical_eval(
@@ -86,6 +92,10 @@ def create_body_comp(
         
     new_comp = ComposicionCorporal(**comp_in.dict(exclude_unset=True))
     new_comp.id_alumno = student_id
+    if current_user.rol == "entrenador":
+        new_comp.visible_para_entrenador = True
+    elif new_comp.visible_para_entrenador is None:
+        new_comp.visible_para_entrenador = True
     if not new_comp.fecha:
         new_comp.fecha = datetime.utcnow()
         
@@ -100,7 +110,10 @@ def get_body_comps(
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user)
 ):
-    return db.query(ComposicionCorporal).filter(ComposicionCorporal.id_alumno == student_id).order_by(desc(ComposicionCorporal.fecha)).all()
+    query = db.query(ComposicionCorporal).filter(ComposicionCorporal.id_alumno == student_id).order_by(desc(ComposicionCorporal.fecha))
+    if current_user.rol == "entrenador":
+        query = query.filter(ComposicionCorporal.visible_para_entrenador == True)
+    return query.all()
 
 @router.delete("/evaluations/body/{comp_id}")
 def delete_body_comp(

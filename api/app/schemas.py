@@ -502,6 +502,7 @@ class EvaluacionFisicaBase(BaseModel):
     plancha_s: Optional[int] = None
     dominadas_reps: Optional[int] = None
     observaciones: Optional[str] = None
+    visible_para_entrenador: Optional[bool] = True
 
 class EvaluacionFisicaCreate(EvaluacionFisicaBase):
     pass
@@ -530,6 +531,7 @@ class ComposicionCorporalBase(BaseModel):
     perimetro_pierna_d: Optional[float] = None
     perimetro_pierna_i: Optional[float] = None
     observaciones: Optional[str] = None
+    visible_para_entrenador: Optional[bool] = True
 
 class ComposicionCorporalCreate(ComposicionCorporalBase):
     pass

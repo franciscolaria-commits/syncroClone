@@ -14,7 +14,7 @@ const StudentEvaluations = ({ providedStudentId }) => {
   
   // Forms
   const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({});
+  const [formData, setFormData] = useState({ visible_para_entrenador: true });
   const [uploading, setUploading] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState(null);
 
@@ -91,13 +91,15 @@ const StudentEvaluations = ({ providedStudentId }) => {
 
       
       let payload = { ...formData };
-      if (activeTab === 'fotos' && userRole === 'entrenador') {
+      if (userRole === 'entrenador') {
+        payload.visible_para_entrenador = true;
+      } else if (payload.visible_para_entrenador === undefined) {
         payload.visible_para_entrenador = true;
       }
       await api.post(`/api/v1/students/${studentId}/evaluations/${endpoint}`, payload);
 
       setShowForm(false);
-      setFormData({});
+      setFormData({ visible_para_entrenador: true });
       fetchData();
     } catch (err) {
       alert("Error al guardar");
@@ -128,7 +130,7 @@ const StudentEvaluations = ({ providedStudentId }) => {
       </div>
 
       {!showForm && activeTab !== 'fotos' && (
-        <button onClick={() => setShowForm(true)} className="mb-4 bg-emerald-500 text-black px-4 py-2 rounded text-xs font-bold flex items-center gap-2">
+        <button onClick={() => { setFormData({ visible_para_entrenador: true }); setShowForm(true); }} className="mb-4 bg-emerald-500 text-black px-4 py-2 rounded text-xs font-bold flex items-center gap-2">
           <Plus size={16} /> NUEVO REGISTRO
         </button>
       )}
@@ -162,6 +164,26 @@ const StudentEvaluations = ({ providedStudentId }) => {
           <label className="text-xs text-zinc-400">Plancha (s) <input name="plancha_s" type="number" onChange={handleChange} className="w-full bg-zinc-800 p-2 mt-1 rounded text-white" /></label>
           <label className="text-xs text-zinc-400">Dominadas <input name="dominadas_reps" type="number" onChange={handleChange} className="w-full bg-zinc-800 p-2 mt-1 rounded text-white" /></label>
           
+          {userRole !== 'entrenador' && (
+            <div className="col-span-full my-2 p-3 bg-zinc-800/40 border border-zinc-800 rounded-xl">
+              <label className="flex items-center gap-2.5 cursor-pointer text-xs md:text-sm text-zinc-300">
+                <input 
+                  type="checkbox" 
+                  name="visible_para_entrenador" 
+                  checked={formData.visible_para_entrenador !== false} 
+                  onChange={handleCheckbox} 
+                  className="rounded bg-zinc-900 border-zinc-700 text-emerald-500 focus:ring-emerald-500 h-4 w-4" 
+                />
+                <span className="font-semibold text-zinc-200">Permitir que mi entrenador vea esta evaluación</span>
+              </label>
+              <p className="text-[11px] text-zinc-400 mt-1 ml-6.5">
+                {formData.visible_para_entrenador !== false 
+                  ? 'Tu entrenador podrá consultar estos resultados en su panel de seguimiento.' 
+                  : 'Esta evaluación será privada. Solo tú podrás verla en tu historial.'}
+              </p>
+            </div>
+          )}
+
           <div className="col-span-full mt-2">
             <button type="submit" className="bg-emerald-500 text-black px-4 py-2 font-bold rounded">Guardar Evaluación</button>
             <button type="button" onClick={() => setShowForm(false)} className="ml-2 text-zinc-400">Cancelar</button>
@@ -189,6 +211,26 @@ const StudentEvaluations = ({ providedStudentId }) => {
           <label className="text-xs text-zinc-400">Pierna Izq <input name="perimetro_pierna_i" type="number" step="0.1" onChange={handleChange} className="w-full bg-zinc-800 p-2 mt-1 rounded text-white" /></label>
           <label className="text-xs text-zinc-400">Pierna Der <input name="perimetro_pierna_d" type="number" step="0.1" onChange={handleChange} className="w-full bg-zinc-800 p-2 mt-1 rounded text-white" /></label>
 
+          {userRole !== 'entrenador' && (
+            <div className="col-span-full my-2 p-3 bg-zinc-800/40 border border-zinc-800 rounded-xl">
+              <label className="flex items-center gap-2.5 cursor-pointer text-xs md:text-sm text-zinc-300">
+                <input 
+                  type="checkbox" 
+                  name="visible_para_entrenador" 
+                  checked={formData.visible_para_entrenador !== false} 
+                  onChange={handleCheckbox} 
+                  className="rounded bg-zinc-900 border-zinc-700 text-emerald-500 focus:ring-emerald-500 h-4 w-4" 
+                />
+                <span className="font-semibold text-zinc-200">Permitir que mi entrenador vea esta evaluación</span>
+              </label>
+              <p className="text-[11px] text-zinc-400 mt-1 ml-6.5">
+                {formData.visible_para_entrenador !== false 
+                  ? 'Tu entrenador podrá consultar estos resultados en su panel de seguimiento.' 
+                  : 'Esta evaluación será privada. Solo tú podrás verla en tu historial.'}
+              </p>
+            </div>
+          )}
+
           <div className="col-span-full mt-2">
             <button type="submit" className="bg-emerald-500 text-black px-4 py-2 font-bold rounded">Guardar Bioimpedancia</button>
             <button type="button" onClick={() => setShowForm(false)} className="ml-2 text-zinc-400">Cancelar</button>
@@ -210,6 +252,7 @@ const StudentEvaluations = ({ providedStudentId }) => {
                 <th className="p-2 border-b border-zinc-700">Push/Sit-ups</th>
                 <th className="p-2 border-b border-zinc-700">Cooper</th>
                 <th className="p-2 border-b border-zinc-700">Dom.</th>
+                {userRole !== 'entrenador' && <th className="p-2 border-b border-zinc-700">Visibilidad</th>}
                 <th className="p-2 border-b border-zinc-700">Acción</th>
               </tr>
             </thead>
@@ -222,10 +265,17 @@ const StudentEvaluations = ({ providedStudentId }) => {
                   <td className="p-2">{ev.push_ups_45s||'-'} / {ev.sit_ups_45s||'-'}</td>
                   <td className="p-2">{ev.cooper_m||'-'}m</td>
                   <td className="p-2">{ev.dominadas_reps||'-'}</td>
+                  {userRole !== 'entrenador' && (
+                    <td className="p-2">
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${ev.visible_para_entrenador !== false ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-zinc-800 text-zinc-400 border border-zinc-700'}`}>
+                        {ev.visible_para_entrenador !== false ? 'Visible' : 'Privado'}
+                      </span>
+                    </td>
+                  )}
                   <td className="p-2"><button onClick={(e) => { e.stopPropagation(); deleteItem(ev.id_evaluacion); }}><Trash2 size={14} className="text-red-500"/></button></td>
                 </tr>
               ))}
-              {physicalEvals.length === 0 && <tr><td colSpan="7" className="p-4 text-center text-zinc-500">Sin registros físicos</td></tr>}
+              {physicalEvals.length === 0 && <tr><td colSpan={userRole !== 'entrenador' ? "8" : "7"} className="p-4 text-center text-zinc-500">Sin registros físicos</td></tr>}
             </tbody>
           </table>
         </div>
@@ -241,6 +291,7 @@ const StudentEvaluations = ({ providedStudentId }) => {
                 <th className="p-2 border-b border-zinc-700">% Grasa</th>
                 <th className="p-2 border-b border-zinc-700">% Músculo</th>
                 <th className="p-2 border-b border-zinc-700">Cintura</th>
+                {userRole !== 'entrenador' && <th className="p-2 border-b border-zinc-700">Visibilidad</th>}
                 <th className="p-2 border-b border-zinc-700">Acción</th>
               </tr>
             </thead>
@@ -252,10 +303,17 @@ const StudentEvaluations = ({ providedStudentId }) => {
                   <td className="p-2">{ev.porcentaje_grasa||'-'}%</td>
                   <td className="p-2">{ev.porcentaje_musculo||'-'}%</td>
                   <td className="p-2">{ev.perimetro_cintura||'-'} cm</td>
+                  {userRole !== 'entrenador' && (
+                    <td className="p-2">
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${ev.visible_para_entrenador !== false ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-zinc-800 text-zinc-400 border border-zinc-700'}`}>
+                        {ev.visible_para_entrenador !== false ? 'Visible' : 'Privado'}
+                      </span>
+                    </td>
+                  )}
                   <td className="p-2"><button onClick={(e) => { e.stopPropagation(); deleteItem(ev.id_composicion); }}><Trash2 size={14} className="text-red-500"/></button></td>
                 </tr>
               ))}
-              {bodyComps.length === 0 && <tr><td colSpan="6" className="p-4 text-center text-zinc-500">Sin registros de bioimpedancia</td></tr>}
+              {bodyComps.length === 0 && <tr><td colSpan={userRole !== 'entrenador' ? "7" : "6"} className="p-4 text-center text-zinc-500">Sin registros de bioimpedancia</td></tr>}
             </tbody>
           </table>
         </div>
@@ -291,8 +349,18 @@ const StudentEvaluations = ({ providedStudentId }) => {
               {selectedRecord.type === 'fisico' ? 'Detalles Evaluación Física' : 'Detalles Composición Corporal'}
             </h3>
             
-            <div className="text-sm text-zinc-300 mb-6">
-              <span className="font-bold text-white">Fecha:</span> {new Date(selectedRecord.data.fecha).toLocaleDateString()}
+            <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-zinc-300 mb-6 pb-2 border-b border-zinc-800">
+              <div>
+                <span className="font-bold text-white">Fecha:</span> {new Date(selectedRecord.data.fecha).toLocaleDateString()}
+              </div>
+              {userRole !== 'entrenador' && (
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-white text-xs">Visibilidad:</span>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${selectedRecord.data.visible_para_entrenador !== false ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-zinc-800 text-zinc-400 border border-zinc-700'}`}>
+                    {selectedRecord.data.visible_para_entrenador !== false ? 'Visible para entrenador' : 'Privado'}
+                  </span>
+                </div>
+              )}
             </div>
 
             {selectedRecord.type === 'fisico' && (
