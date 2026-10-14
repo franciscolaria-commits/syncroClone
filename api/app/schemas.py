@@ -144,6 +144,19 @@ class AlumnoOut(AlumnoBase):
 class UpdatePaymentDate(BaseModel):
     dia_vencimiento_personalizado: Optional[int] = None
 
+class StudentProfileUpdate(BaseModel):
+    telefono: Optional[str] = None
+    fecha_nacimiento: Optional[date] = None
+    peso_corporal_actual: Optional[float] = None
+    objetivo: Optional[str] = None
+
+class PasswordChangeRequest(BaseModel):
+    current_password: str
+    new_password: str = Field(..., min_length=6)
+
+class AccountDeleteRequest(BaseModel):
+    password: str
+
 
 # ==========================================
 # ESQUEMAS DE EJERCICIO

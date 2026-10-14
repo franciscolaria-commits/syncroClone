@@ -5,7 +5,7 @@ from datetime import datetime
 from pydantic import BaseModel
 from app import models, schemas
 from app.database import get_db, engine
-from app.utils.auth import get_current_user
+from app.utils.auth import get_current_user, verificar_password, generar_hash_password
 
 router = APIRouter(
     prefix="/api/v1/students",
@@ -29,6 +29,114 @@ def update_my_phone(phone_data: schemas.PhoneUpdate, db: Session = Depends(get_d
     db.commit()
     db.refresh(current_user)
     return current_user
+
+@router.put("/me/profile", response_model=schemas.AlumnoOut)
+def update_my_profile(
+    profile_data: schemas.StudentProfileUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(get_current_user)
+):
+    if current_user.rol != "alumno":
+        raise HTTPException(status_code=403, detail="Sólo los alumnos pueden editar su perfil")
+
+    alumno = db.query(models.Alumno).options(
+        joinedload(models.Alumno.usuario),
+        joinedload(models.Alumno.entrenador).joinedload(models.Entrenador.usuario)
+    ).filter(models.Alumno.id_usuario == current_user.id_usuario).first()
+
+    if not alumno:
+        raise HTTPException(status_code=404, detail="Perfil no encontrado")
+
+    # Actualizar teléfono en Usuario (permite string o None para removerlo)
+    current_user.telefono = profile_data.telefono.strip() if profile_data.telefono else None
+
+    # Actualizar fecha de nacimiento
+    if profile_data.fecha_nacimiento is not None:
+        alumno.fecha_nacimiento = profile_data.fecha_nacimiento
+
+    # Actualizar peso corporal y fecha de último peso si varió
+    if profile_data.peso_corporal_actual is not None:
+        if alumno.peso_corporal_actual != profile_data.peso_corporal_actual:
+            alumno.peso_corporal_actual = profile_data.peso_corporal_actual
+            alumno.fecha_ultimo_peso = datetime.utcnow()
+
+    # Actualizar objetivo
+    alumno.objetivo = profile_data.objetivo.strip() if profile_data.objetivo else None
+
+    db.commit()
+    db.refresh(alumno)
+    return alumno
+
+@router.put("/me/password")
+def change_my_password(
+    password_data: schemas.PasswordChangeRequest,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(get_current_user)
+):
+    if current_user.rol != "alumno":
+        raise HTTPException(status_code=403, detail="Sólo alumnos")
+
+    if not verificar_password(password_data.current_password, current_user.password_hash):
+        raise HTTPException(status_code=400, detail="La contraseña actual no es correcta")
+
+    current_user.password_hash = generar_hash_password(password_data.new_password)
+    db.commit()
+    return {"message": "Contraseña actualizada exitosamente"}
+
+@router.delete("/me/account")
+def delete_my_account(
+    data: schemas.AccountDeleteRequest,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(get_current_user)
+):
+    if current_user.rol != "alumno":
+        raise HTTPException(status_code=403, detail="Sólo los alumnos pueden eliminar su cuenta de alumno")
+
+    if not verificar_password(data.password, current_user.password_hash):
+        raise HTTPException(status_code=400, detail="Contraseña incorrecta. No se pudo verificar tu identidad.")
+
+    alumno_id = current_user.id_usuario
+    alumno = db.query(models.Alumno).filter(models.Alumno.id_usuario == alumno_id).first()
+    if not alumno:
+        raise HTTPException(status_code=404, detail="Alumno no encontrado")
+
+    try:
+        # 1. Pagos del alumno
+        db.query(models.PagoAlumno).filter(models.PagoAlumno.id_alumno == alumno_id).delete(synchronize_session=False)
+
+        # 2. Historial de ejercicios del alumno
+        db.query(models.HistorialEjercicioAlumno).filter(models.HistorialEjercicioAlumno.id_alumno == alumno_id).delete(synchronize_session=False)
+
+        # 3. Sesiones de entrenamiento y sets reales
+        sesiones = db.query(models.EntrenamientoSesion).filter(models.EntrenamientoSesion.id_alumno == alumno_id).all()
+        sesion_ids = [s.id_sesion for s in sesiones]
+        if sesion_ids:
+            db.query(models.EntrenamientoSetReal).filter(models.EntrenamientoSetReal.id_sesion.in_(sesion_ids)).delete(synchronize_session=False)
+            db.query(models.EntrenamientoSesion).filter(models.EntrenamientoSesion.id_sesion.in_(sesion_ids)).delete(synchronize_session=False)
+
+        # 4. Evaluaciones Físicas, Bioimpedancia y Progreso Visual
+        db.query(models.EvaluacionFisica).filter(models.EvaluacionFisica.id_alumno == alumno_id).delete(synchronize_session=False)
+        db.query(models.ComposicionCorporal).filter(models.ComposicionCorporal.id_alumno == alumno_id).delete(synchronize_session=False)
+        db.query(models.ProgresoVisual).filter(models.ProgresoVisual.id_alumno == alumno_id).delete(synchronize_session=False)
+
+        # 5. Asistencias QR
+        db.query(models.AsistenciaQR).filter(models.AsistenciaQR.id_alumno == alumno_id).delete(synchronize_session=False)
+
+        # 6. Log de la Liga
+        db.query(models.LogLigaAlumno).filter(models.LogLigaAlumno.id_alumno == alumno_id).delete(synchronize_session=False)
+
+        # 7. Alumno
+        db.delete(alumno)
+
+        # 8. Usuario
+        db.delete(current_user)
+
+        db.commit()
+        return {"message": "Tu cuenta y todos tus datos fueron eliminados de forma definitiva."}
+    except Exception as e:
+        db.rollback()
+        print(f"Error al eliminar cuenta de alumno {alumno_id}: {e}")
+        raise HTTPException(status_code=500, detail="Error interno al procesar la eliminación de cuenta.")
 
 @router.get("/me/routine", response_model=schemas.RutinaOut)
 def get_my_routine(db: Session = Depends(get_db), current_user: models.Usuario = Depends(get_current_user)):
