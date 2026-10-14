@@ -1,3 +1,4 @@
+import CalendarPicker from '../components/CalendarPicker.jsx';
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api.js';
 import { useModal } from '../components/ModalProvider.jsx';
@@ -14,6 +15,7 @@ export default function AuthView({ onLoginSuccess }) {
   const [loadingAction, setLoadingAction] = useState(null);
   const [gymInfo, setGymInfo] = useState(null);
   const [selectedMembresia, setSelectedMembresia] = useState("");
+  const [studentBirthdate, setStudentBirthdate] = useState("");
   const modal = useModal();
 
   useEffect(() => {
@@ -77,7 +79,11 @@ export default function AuthView({ onLoginSuccess }) {
     const code = e.target['reg-student-code'].value.trim();
     const email = e.target['reg-student-email'].value;
     const password = e.target['reg-student-password'].value;
-    const birthdate = e.target['reg-student-birthdate'].value;
+    const birthdate = (e.target['reg-student-birthdate'] ? e.target['reg-student-birthdate'].value : '') || studentBirthdate;
+    if (!birthdate) {
+      setError("Debes seleccionar tu fecha de nacimiento en el calendario.");
+      return;
+    }
     const weight = e.target['reg-student-weight'].value;
     const goal = e.target['reg-student-goal'].value;
     const rawPhone = e.target['reg-student-phone'] ? e.target['reg-student-phone'].value.trim() : '';
@@ -268,23 +274,15 @@ export default function AuthView({ onLoginSuccess }) {
             </div>
             <div>
               <label className="text-xs text-zinc-400 font-semibold block mb-1">Fecha de Nacimiento 📅 *</label>
-              <div className="relative">
-                <input 
-                  type="text" 
-                  id="reg-student-birthdate" 
-                  required 
-                  placeholder="Toca para seleccionar fecha..."
-                  className="w-full border border-zinc-800 bg-zinc-900 rounded-xl px-4 py-3 text-sm text-zinc-200 focus:outline-none focus:border-indigo-500 block" 
-                  style={{ colorScheme: 'dark' }} 
-                  onFocus={(e) => { 
-                    e.target.type = 'date';
-                    setTimeout(() => { try { e.target.showPicker() } catch(err) {} }, 50);
-                  }}
-                  onBlur={(e) => {
-                    if (!e.target.value) e.target.type = 'text';
-                  }}
-                />
-              </div>
+              <CalendarPicker
+                id="reg-student-birthdate"
+                name="reg-student-birthdate"
+                value={studentBirthdate}
+                onChange={setStudentBirthdate}
+                placeholder="Toca para abrir calendario..."
+                required={true}
+                theme="indigo"
+              />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>

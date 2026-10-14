@@ -1,3 +1,4 @@
+import CalendarPicker from './CalendarPicker.jsx';
 import React, { useState } from 'react';
 import { useModal } from './ModalProvider.jsx';
 import { api, logout } from '../services/api.js';
@@ -267,11 +268,12 @@ export default function StudentProfile({ profile, onProfileUpdated, onOpenAttend
                       </span>
                     )}
                   </div>
-                  <input
-                    type="date"
+                  <CalendarPicker
+                    id="student-profile-birthdate"
                     value={fechaNacimiento}
-                    onChange={(e) => setFechaNacimiento(e.target.value)}
-                    className="w-full bg-zinc-950/80 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-emerald-500 transition-colors"
+                    onChange={setFechaNacimiento}
+                    placeholder="Toca para abrir calendario..."
+                    theme="emerald"
                   />
                   <p className="text-[11px] text-zinc-500">
                     Permite a tu entrenador planificar cargas adaptadas a tu edad biológica.
