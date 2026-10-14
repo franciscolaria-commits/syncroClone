@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
+from typing import List, Optional
 from sqlalchemy.orm import Session, selectinload, joinedload
 from uuid import UUID, uuid4
 from datetime import datetime
@@ -84,15 +85,21 @@ def change_my_password(
     return {"message": "Contraseña actualizada exitosamente"}
 
 @router.delete("/me/account")
+@router.post("/me/account/delete")
 def delete_my_account(
-    data: schemas.AccountDeleteRequest,
+    data: Optional[schemas.AccountDeleteRequest] = None,
+    password_query: Optional[str] = Query(None, alias="password"),
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(get_current_user)
 ):
     if current_user.rol != "alumno":
         raise HTTPException(status_code=403, detail="Sólo los alumnos pueden eliminar su cuenta de alumno")
 
-    if not verificar_password(data.password, current_user.password_hash):
+    password = (data.password if data and data.password else None) or password_query
+    if not password:
+        raise HTTPException(status_code=400, detail="Debes ingresar tu contraseña para confirmar la eliminación.")
+
+    if not verificar_password(password, current_user.password_hash):
         raise HTTPException(status_code=400, detail="Contraseña incorrecta. No se pudo verificar tu identidad.")
 
     alumno_id = current_user.id_usuario

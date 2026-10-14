@@ -127,8 +127,8 @@ export default function StudentProfile({ profile, onProfileUpdated, onOpenAttend
 
     setIsDeleting(true);
     try {
-      await api.delete('/api/v1/students/me/account', {
-        data: { password: deletePassword }
+      await api.post('/api/v1/students/me/account/delete', {
+        password: deletePassword
       });
       setIsDeleteModalOpen(false);
       await modal.alert("Tu cuenta y todos tus datos fueron eliminados de forma definitiva.");

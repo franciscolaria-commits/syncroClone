@@ -85,12 +85,25 @@ async function request(endpoint, options = {}) {
   }
 }
 
+function formatErrorMessage(errData, fallback = "Error en la petición") {
+  if (!errData) return fallback;
+  if (typeof errData.detail === 'string') return errData.detail;
+  if (Array.isArray(errData.detail)) {
+    return errData.detail.map(d => d.msg || (typeof d === 'string' ? d : JSON.stringify(d))).join(', ');
+  }
+  if (errData.detail && typeof errData.detail === 'object') {
+    return JSON.stringify(errData.detail);
+  }
+  if (errData.message) return errData.message;
+  return fallback;
+}
+
 export const api = {
   get: async (endpoint) => {
     const res = await request(endpoint, { method: "GET" });
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.detail || "Error en petición de lectura");
+      throw new Error(formatErrorMessage(errData, "Error en petición de lectura"));
     }
     return res.json();
   },
@@ -104,7 +117,7 @@ export const api = {
     });
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.detail || "Error en petición de creación");
+      throw new Error(formatErrorMessage(errData, "Error en petición de creación"));
     }
     return res.json();
   },
@@ -118,7 +131,7 @@ export const api = {
     });
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.detail || "Error en petición de actualización");
+      throw new Error(formatErrorMessage(errData, "Error en petición de actualización"));
     }
     return res.json();
   },
@@ -132,16 +145,29 @@ export const api = {
     });
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.detail || "Error en petición de escritura (PATCH)");
+      throw new Error(formatErrorMessage(errData, "Error en petición de escritura (PATCH)"));
     }
     return res.status !== 204 ? res.json().catch(() => ({})) : null;
   },
 
-  delete: async (endpoint) => {
-    const res = await request(endpoint, { method: "DELETE" });
+  delete: async (endpoint, bodyOrOptions) => {
+    let body = undefined;
+    if (bodyOrOptions !== undefined) {
+      if (bodyOrOptions && typeof bodyOrOptions === 'object' && bodyOrOptions.data !== undefined) {
+        body = bodyOrOptions.data;
+      } else {
+        body = bodyOrOptions;
+      }
+    }
+    const isFormData = body instanceof FormData;
+    const res = await request(endpoint, {
+      method: "DELETE",
+      headers: body ? (isFormData ? {} : { "Content-Type": "application/json" }) : undefined,
+      body: body ? (isFormData ? body : JSON.stringify(body)) : undefined
+    });
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.detail || "Error en petición de eliminación");
+      throw new Error(formatErrorMessage(errData, "Error en petición de eliminación"));
     }
     if (res.status === 204) {
       return null;
