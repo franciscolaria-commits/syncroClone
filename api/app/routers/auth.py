@@ -1,13 +1,14 @@
 import os
 import asyncio
-from datetime import datetime, timedelta
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+import secrets
+from datetime import datetime, timedelta, date
+from fastapi import APIRouter, Depends, HTTPException, status, Request, BackgroundTasks
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from uuid import UUID
 
 from app.database import get_db
-from app.models import Usuario, Entrenador, Alumno, Invitacion
+from app.models import Usuario, Entrenador, Alumno, Invitacion, ConsentimientoMenor
 from app.schemas import UsuarioCreate, UsuarioOut, AlumnoCreate, AlumnoOut, Token
 from app.utils.auth import (
     generar_hash_password,
@@ -74,7 +75,11 @@ def register_coach(user_data: UsuarioCreate, db: Session = Depends(get_db)):
         )
 
 @router.post("/register-student", response_model=AlumnoOut, status_code=status.HTTP_201_CREATED)
-def register_student(student_data: AlumnoCreate, db: Session = Depends(get_db)):
+def register_student(
+    student_data: AlumnoCreate,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
     """
     Registra un nuevo usuario con rol de Alumno.
     Valida estrictamente el código de invitación provisto por el entrenador.
@@ -169,8 +174,22 @@ def register_student(student_data: AlumnoCreate, db: Session = Depends(get_db)):
                     student_data.clases_compradas = p.get("clases", 0)
                     break
         
-        nuevo_alumno = Alumno(
+        # 5. Comprobar minoridad según fecha de nacimiento
+        is_menor = False
+        if student_data.fecha_nacimiento:
+            hoy_date = date.today()
+            fn = student_data.fecha_nacimiento
+            edad = hoy_date.year - fn.year - ((hoy_date.month, hoy_date.day) < (fn.month, fn.day))
+            if edad < 18:
+                is_menor = True
 
+        if is_menor and not student_data.email_tutor:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="El correo electrónico del padre, madre o tutor legal es obligatorio para menores de 18 años."
+            )
+
+        nuevo_alumno = Alumno(
             id_usuario=nuevo_usuario.id_usuario,
             id_entrenador=id_entrenador,
             peso_corporal_actual=student_data.peso_corporal_actual,
@@ -181,16 +200,51 @@ def register_student(student_data: AlumnoCreate, db: Session = Depends(get_db)):
             tipo_membresia=student_data.tipo_membresia,
             clases_compradas=student_data.clases_compradas,
             clases_restantes=student_data.clases_compradas,
-            gym_paquete_id=student_data.gym_paquete_id
+            gym_paquete_id=student_data.gym_paquete_id,
+            requiere_autorizacion_tutor=is_menor,
+            autorizacion_tutor_completada=not is_menor,
+            email_tutor=student_data.email_tutor.lower() if student_data.email_tutor else None
         )
         db.add(nuevo_alumno)
+
+        # Si es menor de edad, registrar solicitud de consentimiento y enviar correo
+        if is_menor and student_data.email_tutor:
+            token_tutor = secrets.token_urlsafe(32)
+            consentimiento = ConsentimientoMenor(
+                id_alumno=nuevo_usuario.id_usuario,
+                email_tutor=student_data.email_tutor.lower(),
+                nombre_tutor=student_data.nombre_tutor,
+                vinculo_tutor=student_data.vinculo_tutor,
+                token_autorizacion=token_tutor,
+                fecha_expiracion=datetime.utcnow() + timedelta(days=30),
+                version_politica="v1.0-2026-10",
+                estado="pendiente"
+            )
+            db.add(consentimiento)
+
+            # Despachar correo de consentimiento parental
+            coach_nom = "Entrenador Syncro"
+            if entrenador_config and entrenador_config.usuario:
+                cu = entrenador_config.usuario
+                coach_nom = f"{getattr(cu, 'nombre', '') or ''} {getattr(cu, 'apellido', '') or ''}".strip() or cu.email.split("@")[0]
+            alumno_nom = nuevo_usuario.email.split("@")[0]
+
+            from app.services.email_service import send_parental_consent_request_email
+            background_tasks.add_task(
+                send_parental_consent_request_email,
+                student_data.email_tutor.lower(),
+                alumno_nom,
+                coach_nom,
+                token_tutor
+            )
         
-        # 5. La invitación ya no se inahbilita (códigos reutilizables)
-        # invitacion.is_used = True
-        
+        # 6. La invitación ya no se inhabilita (códigos reutilizables)
         db.commit()
         db.refresh(nuevo_alumno)
         return nuevo_alumno
+    except HTTPException:
+        db.rollback()
+        raise
     except Exception as e:
         db.rollback()
         print(f"ERROR INTERNO (Registro Alumno): {str(e)}")
@@ -239,6 +293,11 @@ async def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends
             headers={"WWW-Authenticate": "Bearer"},
         )
         
+    # Flags de autorización parental
+    requiere_tutor = False
+    tutor_completado = True
+    email_tutor = None
+
     # Verificar si es entrenador y está suspendido o eliminado
     if usuario.rol == "entrenador":
         entrenador = db.query(Entrenador).filter(Entrenador.id_usuario == usuario.id_usuario).first()
@@ -253,6 +312,12 @@ async def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Tu cuenta está suspendida porque todavía no se ha dado de alta o por falta de pago."
                 )
+    elif usuario.rol == "alumno":
+        alumno = db.query(Alumno).filter(Alumno.id_usuario == usuario.id_usuario).first()
+        if alumno:
+            requiere_tutor = bool(alumno.requiere_autorizacion_tutor)
+            tutor_completado = bool(alumno.autorizacion_tutor_completada)
+            email_tutor = alumno.email_tutor
         
     # Crear token JWT
     access_token = crear_token_acceso(data={"sub": usuario.email, "rol": usuario.rol})
@@ -262,5 +327,8 @@ async def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends
         token_type="bearer",
         email=usuario.email,
         rol=usuario.rol,
-        id_usuario=usuario.id_usuario
+        id_usuario=usuario.id_usuario,
+        requiere_autorizacion_tutor=requiere_tutor,
+        autorizacion_tutor_completada=tutor_completado,
+        email_tutor=email_tutor
     )

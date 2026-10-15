@@ -6,7 +6,10 @@ const StudentDashboard = React.lazy(() => import('./views/StudentDashboard.jsx')
 const BlockedView = React.lazy(() => import('./views/BlockedView.jsx'));
 const QRCheckinView = React.lazy(() => import('./views/QRCheckinView.jsx'));
 const SuperAdminPanel = React.lazy(() => import('./views/SuperAdminPanel.jsx'));
+const GuardianConsentView = React.lazy(() => import('./views/GuardianConsentView.jsx'));
+const PendingGuardianConsentView = React.lazy(() => import('./views/PendingGuardianConsentView.jsx'));
 import WeightGuardian from './components/WeightGuardian.jsx';
+import { api } from './services/api.js';
 
 const LoadingScreen = () => (
   <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-4">
@@ -31,13 +34,39 @@ export default function App() {
     const token = localStorage.getItem("fitness_jwt");
     const userRaw = localStorage.getItem("fitness_user");
     if (token && userRaw) {
-      setSession(JSON.parse(userRaw));
+      const parsed = JSON.parse(userRaw);
+      setSession(parsed);
+
+      // Si es alumno, sincronizar estado actualizado de autorización con el backend
+      if (parsed.rol === 'alumno') {
+        api.get('/api/v1/students/profile').then(profile => {
+          if (profile && (
+            profile.requiere_autorizacion_tutor !== parsed.requiere_autorizacion_tutor ||
+            profile.autorizacion_tutor_completada !== parsed.autorizacion_tutor_completada ||
+            profile.email_tutor !== parsed.email_tutor
+          )) {
+            const updated = {
+              ...parsed,
+              requiere_autorizacion_tutor: profile.requiere_autorizacion_tutor,
+              autorizacion_tutor_completada: profile.autorizacion_tutor_completada,
+              email_tutor: profile.email_tutor
+            };
+            localStorage.setItem("fitness_user", JSON.stringify(updated));
+            setSession(updated);
+          }
+        }).catch(() => {});
+      }
     } else {
       setSession(null);
     }
   };
 
   const path = window.location.pathname;
+
+  // Ruta pública de consentimiento parental (no requiere login)
+  if (path === '/consentimiento-tutor') {
+    return <React.Suspense fallback={<LoadingScreen />}><GuardianConsentView /></React.Suspense>;
+  }
 
   if (path.startsWith('/qr/')) {
     return <React.Suspense fallback={<LoadingScreen />}><QRCheckinView /></React.Suspense>;
@@ -78,8 +107,19 @@ export default function App() {
     return <React.Suspense fallback={<LoadingScreen />}><CoachDashboard /></React.Suspense>;
   }
 
-  // Si es alumno, envolvemos en el Guardián de Peso
+  // Si es alumno, verificar si está bloqueado preventivamente por falta de autorización parental
   if (session.rol === 'alumno') {
+    if (session.requiere_autorizacion_tutor && !session.autorizacion_tutor_completada) {
+      return (
+        <React.Suspense fallback={<LoadingScreen />}>
+          <PendingGuardianConsentView
+            user={session}
+            onUpdateUser={(updated) => setSession(updated)}
+          />
+        </React.Suspense>
+      );
+    }
+
     return (
       <React.Suspense fallback={<LoadingScreen />}>
         <WeightGuardian user={session}>

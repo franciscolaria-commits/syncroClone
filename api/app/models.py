@@ -94,6 +94,11 @@ class Alumno(Base):
     frecuencia_evaluacion_dias = Column(Integer, nullable=True)
     ultima_evaluacion_fecha = Column(DateTime, nullable=True)
     
+    # Protección de Menores y Consentimiento Parental
+    requiere_autorizacion_tutor = Column(Boolean, default=False, nullable=False)
+    autorizacion_tutor_completada = Column(Boolean, default=True, nullable=False)
+    email_tutor = Column(String, nullable=True)
+    
     usuario = relationship("Usuario")
     entrenador = relationship("Entrenador")
 
@@ -325,3 +330,22 @@ class AsistenciaQR(Base):
 
     alumno     = relationship("Alumno")
     entrenador = relationship("Entrenador")
+
+
+class ConsentimientoMenor(Base):
+    __tablename__ = "consentimientos_menores"
+    id_consentimiento = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id_alumno = Column(UUID(as_uuid=True), ForeignKey("alumnos.id_usuario"), nullable=False, index=True)
+    email_tutor = Column(String, nullable=False, index=True)
+    nombre_tutor = Column(String, nullable=True)
+    vinculo_tutor = Column(String, nullable=True) # 'padre', 'madre', 'tutor_legal'
+    token_autorizacion = Column(String, unique=True, index=True, nullable=False)
+    fecha_solicitud = Column(DateTime, default=datetime.utcnow, nullable=False)
+    fecha_autorizacion = Column(DateTime, nullable=True)
+    fecha_expiracion = Column(DateTime, nullable=False)
+    ip_autorizacion = Column(String, nullable=True)
+    user_agent_autorizacion = Column(String, nullable=True)
+    version_politica = Column(String, default="v1.0-2026-10", nullable=False)
+    estado = Column(String, default="pendiente", nullable=False) # 'pendiente', 'autorizado', 'revocado'
+
+    alumno = relationship("Alumno")

@@ -18,6 +18,24 @@ export default function AuthView({ onLoginSuccess }) {
   const [studentBirthdate, setStudentBirthdate] = useState("");
   const modal = useModal();
 
+  const calculateAge = (dateString) => {
+    if (!dateString) return null;
+    const parts = String(dateString).split('-');
+    if (parts.length < 3) return null;
+    const birth = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    if (isNaN(birth.getTime())) return null;
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
+  const studentAge = calculateAge(studentBirthdate);
+  const isMinor = studentAge !== null && studentAge < 18;
+
   useEffect(() => {
     if (initialCoachCode && activePanel === 'registerStudent') {
       api.get(`/api/v1/qr/${initialCoachCode}`)
@@ -44,7 +62,14 @@ export default function AuthView({ onLoginSuccess }) {
 
       const data = await api.post("/api/v1/auth/login", formData);
       localStorage.setItem("fitness_jwt", data.access_token);
-      const userData = { email: data.email, rol: data.rol, id_usuario: data.id_usuario };
+      const userData = {
+        email: data.email,
+        rol: data.rol,
+        id_usuario: data.id_usuario,
+        requiere_autorizacion_tutor: data.requiere_autorizacion_tutor,
+        autorizacion_tutor_completada: data.autorizacion_tutor_completada,
+        email_tutor: data.email_tutor
+      };
       localStorage.setItem("fitness_user", JSON.stringify(userData));
       try {
         window.indexedDB.deleteDatabase("keyval-store");
@@ -113,6 +138,15 @@ export default function AuthView({ onLoginSuccess }) {
         }
       }
 
+      if (isMinor) {
+        const guardianEmail = e.target['reg-student-guardian-email'] ? e.target['reg-student-guardian-email'].value.trim() : '';
+        if (!guardianEmail || !guardianEmail.includes('@')) {
+          setError("El correo de tu padre, madre o tutor legal es estrictamente obligatorio para menores de 18 años.");
+          setLoadingAction(null);
+          return;
+        }
+      }
+
       await api.post("/api/v1/auth/register-student", {
         codigo_invitacion: code,
         email,
@@ -123,9 +157,17 @@ export default function AuthView({ onLoginSuccess }) {
         telefono: phone,
         tipo_membresia,
         clases_compradas,
-        gym_paquete_id
+        gym_paquete_id,
+        email_tutor: isMinor && e.target['reg-student-guardian-email'] ? e.target['reg-student-guardian-email'].value.trim().toLowerCase() : null,
+        nombre_tutor: isMinor && e.target['reg-student-guardian-name'] ? e.target['reg-student-guardian-name'].value.trim() || null : null,
+        vinculo_tutor: isMinor && e.target['reg-student-guardian-vinculo'] ? e.target['reg-student-guardian-vinculo'].value : null
       });
-      await modal.alert("¡Registro completado exitosamente! Inicia sesión.");
+
+      if (isMinor) {
+        await modal.alert("¡Registro completado! Al ser menor de 18 años, enviamos un enlace de autorización al correo de tu tutor. Tu cuenta permanecerá en espera hasta que completen la conformidad.");
+      } else {
+        await modal.alert("¡Registro completado exitosamente! Inicia sesión.");
+      }
       // Limpiar URL si venia de link
       window.history.replaceState({}, document.title, window.location.pathname);
       setActivePanel('login');
@@ -284,6 +326,58 @@ export default function AuthView({ onLoginSuccess }) {
                 theme="indigo"
               />
             </div>
+
+            {isMinor && (
+              <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl flex flex-col gap-3 animate-in fade-in duration-300">
+                <div className="flex items-center gap-2">
+                  <span className="text-amber-400 font-bold text-xs uppercase tracking-wider flex items-center gap-1.5">
+                    ⚠️ Requiere Autorización Parental (Menor de 18 años)
+                  </span>
+                </div>
+                <p className="text-[11px] text-zinc-300 leading-relaxed">
+                  Conforme a las normativas de privacidad y protección de menores, un padre, madre o tutor legal debe autorizar tu cuenta para que puedas entrenar en Syncro.
+                </p>
+                <div>
+                  <label className="text-xs text-amber-200 font-semibold block mb-1">
+                    Correo de tu padre, madre o tutor legal *
+                  </label>
+                  <input
+                    type="email"
+                    id="reg-student-guardian-email"
+                    required={isMinor}
+                    placeholder="correo.tutor@ejemplo.com"
+                    className="w-full bg-zinc-900 border border-amber-500/50 rounded-xl px-4 py-3 text-sm text-zinc-100 focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-zinc-400 font-semibold block mb-1">
+                      Nombre del tutor <span className="text-zinc-500 font-normal">(opcional)</span>
+                    </label>
+                    <input
+                      type="text"
+                      id="reg-student-guardian-name"
+                      placeholder="Nombre y Apellido"
+                      className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-2.5 text-xs text-zinc-200"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-zinc-400 font-semibold block mb-1">
+                      Vínculo <span className="text-zinc-500 font-normal">(opcional)</span>
+                    </label>
+                    <select
+                      id="reg-student-guardian-vinculo"
+                      defaultValue="padre"
+                      className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-2.5 text-xs text-zinc-200"
+                    >
+                      <option value="padre">Padre</option>
+                      <option value="madre">Madre</option>
+                      <option value="tutor_legal">Tutor Legal</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs text-zinc-400 font-semibold block mb-1">Peso Corporal (kg) <span className="text-zinc-500 font-normal">(opcional)</span></label>

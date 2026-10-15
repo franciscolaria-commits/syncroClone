@@ -641,7 +641,19 @@ export default function CoachDashboard() {
                     <div>
                       <div className="flex items-center justify-between">
                         <h3 className="text-sm font-bold text-zinc-100">{alumno.usuario.email.split('@')[0]}</h3>
-                        {!alumno.estado_activo && <span className="text-[10px] bg-red-900/40 text-red-400 px-2 py-0.5 rounded-full uppercase tracking-wider font-bold">Suspendido</span>}
+                        <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                          {alumno.requiere_autorizacion_tutor && !alumno.autorizacion_tutor_completada && (
+                            <span className="text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 shadow-sm">
+                              🟡 Pendiente Tutor
+                            </span>
+                          )}
+                          {alumno.requiere_autorizacion_tutor && alumno.autorizacion_tutor_completada && (
+                            <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 shadow-sm">
+                              🟢 Tutor Autorizado
+                            </span>
+                          )}
+                          {!alumno.estado_activo && <span className="text-[10px] bg-red-900/40 text-red-400 px-2 py-0.5 rounded-full uppercase tracking-wider font-bold">Suspendido</span>}
+                        </div>
                       </div>
                       <p className="text-[10px] text-zinc-500">{alumno.usuario.email}</p>
                       

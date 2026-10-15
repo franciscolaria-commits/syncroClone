@@ -34,6 +34,9 @@ class Token(BaseModel):
     email: str
     rol: str
     id_usuario: UUID
+    requiere_autorizacion_tutor: Optional[bool] = False
+    autorizacion_tutor_completada: Optional[bool] = True
+    email_tutor: Optional[str] = None
 
 class TokenData(BaseModel):
     email: Optional[str] = None
@@ -112,6 +115,9 @@ class AlumnoCreate(AlumnoBase):
     tipo_membresia: Optional[str] = None
     clases_compradas: Optional[int] = None
     gym_paquete_id: Optional[str] = None
+    email_tutor: Optional[EmailStr] = Field(None, description="Email del padre/madre o tutor legal si es menor")
+    nombre_tutor: Optional[str] = Field(None, description="Nombre del tutor")
+    vinculo_tutor: Optional[str] = Field(None, description="Relación o vínculo (ej: Padre, Madre, Tutor)")
 
 class AlumnoUpdate(BaseModel):
     peso: Optional[float] = None
@@ -129,6 +135,9 @@ class AlumnoOut(AlumnoBase):
     usuario: UsuarioOut
     entrenador: Optional[EntrenadorOut] = None
     rutina_nombre: Optional[str] = None
+    requiere_autorizacion_tutor: Optional[bool] = False
+    autorizacion_tutor_completada: Optional[bool] = True
+    email_tutor: Optional[str] = None
     
     # Gym mode fields
     tipo_membresia: Optional[str] = None
@@ -583,3 +592,28 @@ class MembershipUpdate(BaseModel):
     tipo_membresia: str
     clases_compradas: Optional[int] = None
     gym_paquete_id: Optional[str] = None
+
+# ==========================================
+# ESQUEMAS DE CONSENTIMIENTO PARENTAL
+# ==========================================
+
+class ConsentimientoInfoResponse(BaseModel):
+    token: str
+    nombre_alumno: str
+    nombre_entrenador: Optional[str] = None
+    email_tutor: str
+    nombre_tutor: Optional[str] = None
+    vinculo_tutor: Optional[str] = None
+    version_politica: str
+    estado: str
+    expirado: bool
+
+class AutorizarConsentimientoRequest(BaseModel):
+    token: str
+    nombre: str
+    vinculo: str
+    checks_jurados: bool
+
+class ReenviarSolicitudRequest(BaseModel):
+    email_tutor: Optional[EmailStr] = None
+

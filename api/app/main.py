@@ -49,15 +49,20 @@ try:
         conn.execute(text("ALTER TABLE alumnos ADD COLUMN IF NOT EXISTS gym_paquete_id VARCHAR"))
         conn.execute(text("ALTER TABLE evaluaciones_fisicas ADD COLUMN IF NOT EXISTS visible_para_entrenador BOOLEAN DEFAULT TRUE"))
         conn.execute(text("ALTER TABLE composicion_corporal ADD COLUMN IF NOT EXISTS visible_para_entrenador BOOLEAN DEFAULT TRUE"))
+        conn.execute(text("ALTER TABLE alumnos ADD COLUMN IF NOT EXISTS requiere_autorizacion_tutor BOOLEAN DEFAULT FALSE"))
+        conn.execute(text("ALTER TABLE alumnos ADD COLUMN IF NOT EXISTS autorizacion_tutor_completada BOOLEAN DEFAULT TRUE"))
+        conn.execute(text("ALTER TABLE alumnos ADD COLUMN IF NOT EXISTS email_tutor VARCHAR"))
         print("Manual DDL (columnas) aplicadas con éxito.")
 except Exception as e:
     print(f"Error aplicando manual DDL: {e}")
 
-# Crear las tablas en la base de datos automáticamente si no existen (creará asistencias_qr)
+# Crear las tablas en la base de datos automáticamente si no existen (creará asistencias_qr y consentimientos_menores)
 models.Base.metadata.create_all(bind=engine)
 from app.routers.storage import router as storage_router
 from app.routers.auth import router as auth_router
 from app.routers.coaches import router as coaches_router
+from app.routers.tutores import router as tutores_router
+from app.routers.legal import router as legal_router
 from app.routers.students import router as students_router
 from app.routers.student_me import router as student_me_router
 from app.routers.exercises import router as exercises_router
@@ -72,6 +77,9 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from app.utils.rate_limit import limiter
+from app.utils.auth import verificar_token_acceso
+from fastapi.responses import JSONResponse
+from fastapi import Request
 
 # Sentry Integration
 sentry_dsn = os.getenv("SENTRY_DSN", "")
@@ -88,6 +96,43 @@ if sentry_dsn:
     )
 
 app = FastAPI(title="Fitness Platform API")
+
+# Middleware Guardián de Consentimiento Parental
+@app.middleware("http")
+async def parental_consent_guardian_middleware(request: Request, call_next):
+    path = request.url.path
+    guarded_prefixes = (
+        "/api/v1/routines",
+        "/api/v1/sessions",
+        "/api/v1/evaluations",
+        "/api/v1/students/me/routine",
+        "/api/v1/students/me/history",
+        "/api/v1/students/me/stats",
+        "/api/v1/students/me/weight",
+        "/api/v1/students/me/league",
+        "/api/v1/students/me/asistencias",
+    )
+    if any(path.startswith(prefix) for prefix in guarded_prefixes):
+        auth_header = request.headers.get("authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split(" ")[1]
+            payload = verificar_token_acceso(token)
+            if payload and payload.get("rol") == "alumno":
+                email = payload.get("sub")
+                if email:
+                    db = next(get_db())
+                    try:
+                        user = db.query(models.Usuario).filter(models.Usuario.email == email).first()
+                        if user:
+                            alumno = db.query(models.Alumno).filter(models.Alumno.id_usuario == user.id_usuario).first()
+                            if alumno and alumno.requiere_autorizacion_tutor and not alumno.autorizacion_tutor_completada:
+                                return JSONResponse(
+                                    status_code=403,
+                                    content={"detail": "Cuenta pendiente de autorización parental"}
+                                )
+                    finally:
+                        db.close()
+    return await call_next(request)
 
 # Rate Limiting Global Setup
 app.state.limiter = limiter
@@ -122,6 +167,8 @@ app.add_middleware(
 # Registrar routers
 app.include_router(auth_router)
 app.include_router(coaches_router)
+app.include_router(tutores_router)
+app.include_router(legal_router)
 app.include_router(students_router)
 app.include_router(student_me_router)
 app.include_router(exercises_router)
