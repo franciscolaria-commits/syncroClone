@@ -90,8 +90,113 @@ async def _send_smtp_robust(message: EmailMessage, recipient: str) -> bool:
         except Exception as e2:
             print(f"[EmailService] Puerto 587 STARTTLS fallo para {recipient}: {type(e2).__name__} - {e2}")
 
-    print(f"[EmailService] CRÍTICO: Fallaron todos los puertos e intentos para enviar a {recipient}")
+async def _send_via_http_api(recipient: str, subject: str, html_content: str) -> bool:
+    """
+    Intenta el envío mediante APIs HTTP (Puerto 443 HTTPS), evitando el bloqueo
+    de puertos SMTP (25, 465, 587) impuesto por Render en sus planes gratuitos.
+    Soporta Resend y Brevo.
+    """
+    import json
+    import urllib.request
+    import urllib.error
+    import asyncio
+
+    resend_key = (os.getenv("RESEND_API_KEY") or "").strip().strip('"').strip("'")
+    if resend_key:
+        from_email = os.getenv("EMAIL_FROM") or "Syncro <onboarding@resend.dev>"
+        payload = {
+            "from": from_email,
+            "to": [recipient],
+            "subject": subject,
+            "html": html_content
+        }
+        data = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(
+            "https://api.resend.com/emails",
+            data=data,
+            headers={
+                "Authorization": f"Bearer {resend_key}",
+                "Content-Type": "application/json",
+                "User-Agent": "Syncro-API/1.0"
+            },
+            method="POST"
+        )
+        try:
+            loop = asyncio.get_event_loop()
+            def do_resend():
+                with urllib.request.urlopen(req, timeout=12) as resp:
+                    return resp.status in (200, 201)
+            success = await loop.run_in_executor(None, do_resend)
+            if success:
+                print(f"[EmailService] Correo entregado exitosamente a {recipient} via Resend HTTP API (Puerto 443)")
+                return True
+        except urllib.error.HTTPError as e:
+            err_body = e.read().decode("utf-8", errors="replace") if e.fp else ""
+            print(f"[EmailService] Resend HTTP Error {e.code}: {err_body}")
+        except Exception as e:
+            print(f"[EmailService] Error conectando a Resend API: {e}")
+
+    brevo_key = (os.getenv("BREVO_API_KEY") or "").strip().strip('"').strip("'")
+    if brevo_key:
+        smtp_email, _ = get_smtp_credentials()
+        from_email = smtp_email or "syncroclone@gmail.com"
+        payload = {
+            "sender": {"name": "Syncro", "email": from_email},
+            "to": [{"email": recipient}],
+            "subject": subject,
+            "htmlContent": html_content
+        }
+        data = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(
+            "https://api.brevo.com/v3/smtp/email",
+            data=data,
+            headers={
+                "api-key": brevo_key,
+                "Content-Type": "application/json",
+                "User-Agent": "Syncro-API/1.0"
+            },
+            method="POST"
+        )
+        try:
+            loop = asyncio.get_event_loop()
+            def do_brevo():
+                with urllib.request.urlopen(req, timeout=12) as resp:
+                    return resp.status in (200, 201)
+            success = await loop.run_in_executor(None, do_brevo)
+            if success:
+                print(f"[EmailService] Correo entregado exitosamente a {recipient} via Brevo HTTP API (Puerto 443)")
+                return True
+        except urllib.error.HTTPError as e:
+            err_body = e.read().decode("utf-8", errors="replace") if e.fp else ""
+            print(f"[EmailService] Brevo HTTP Error {e.code}: {err_body}")
+        except Exception as e:
+            print(f"[EmailService] Error conectando a Brevo API: {e}")
+
     return False
+
+async def _dispatch_email_multichannel(recipient: str, subject: str, html_content: str, text_content: str = "") -> bool:
+    """
+    Canal inteligente de despacho:
+    1. Si existe RESEND_API_KEY o BREVO_API_KEY, despacha por HTTP (Puerto 443), eludiendo el bloqueo de puertos en Render Free.
+    2. En caso contrario (o si falla), intenta despacho SMTP directo por puertos 465 y 587.
+    """
+    # 1. Intentar HTTP API si hay keys configuradas
+    if os.getenv("RESEND_API_KEY") or os.getenv("BREVO_API_KEY"):
+        if await _send_via_http_api(recipient, subject, html_content):
+            return True
+
+    # 2. Fallback SMTP
+    smtp_email, _ = get_smtp_credentials()
+    message = EmailMessage()
+    message["From"] = f"Syncro Privacidad <{smtp_email}>" if smtp_email else "Syncro <syncroclone@gmail.com>"
+    if smtp_email:
+        message["Reply-To"] = smtp_email
+    message["To"] = recipient
+    message["Subject"] = subject
+    message.set_content(text_content or "Por favor habilita HTML para visualizar este mensaje.")
+    message.add_alternative(html_content, subtype="html")
+
+    return await _send_smtp_robust(message, recipient)
 
 async def send_payment_reminder_email(alumno_email: str, alumno_nombre: str, entrenador_nombre: str, is_due_today: bool):
     """
@@ -399,16 +504,12 @@ async def send_parental_consent_request_email(tutor_email: str, alumno_nombre: s
     </html>
     """
 
-    smtp_email, _ = get_smtp_credentials()
-    message = EmailMessage()
-    message["From"] = f"Syncro Privacidad <{smtp_email}>"
-    message["Reply-To"] = smtp_email
-    message["To"] = tutor_email
-    message["Subject"] = subject
-    message.set_content(f"Autorización parental requerida para {alumno_nombre}. Ingrese a {auth_url} para autorizar.")
-    message.add_alternative(html_content, subtype="html")
-
-    return await _send_smtp_robust(message, tutor_email)
+    return await _dispatch_email_multichannel(
+        tutor_email,
+        subject,
+        html_content,
+        f"Autorización parental requerida para {alumno_nombre}. Ingrese a {auth_url} para autorizar."
+    )
 
 
 async def send_parental_consent_confirmation_email(tutor_email: str, alumno_email: str, alumno_nombre: str):
@@ -502,23 +603,19 @@ async def send_parental_consent_confirmation_email(tutor_email: str, alumno_emai
     """
 
     # Enviar al tutor
-    msg_tutor = EmailMessage()
-    msg_tutor["From"] = f"Syncro Privacidad <{smtp_email}>"
-    msg_tutor["Reply-To"] = smtp_email
-    msg_tutor["To"] = tutor_email
-    msg_tutor["Subject"] = tutor_subject
-    msg_tutor.set_content(f"Autorización parental confirmada con éxito para {alumno_nombre}.")
-    msg_tutor.add_alternative(tutor_html, subtype="html")
-    res_tutor = await _send_smtp_robust(msg_tutor, tutor_email)
+    res_tutor = await _dispatch_email_multichannel(
+        tutor_email,
+        tutor_subject,
+        tutor_html,
+        f"Autorización parental confirmada con éxito para {alumno_nombre}."
+    )
 
     # Enviar al alumno
-    msg_alumno = EmailMessage()
-    msg_alumno["From"] = f"Syncro Notificaciones <{smtp_email}>"
-    msg_alumno["Reply-To"] = smtp_email
-    msg_alumno["To"] = alumno_email
-    msg_alumno["Subject"] = alumno_subject
-    msg_alumno.set_content(f"Hola {alumno_nombre}, tu cuenta ha sido autorizada y habilitada.")
-    msg_alumno.add_alternative(alumno_html, subtype="html")
-    res_alumno = await _send_smtp_robust(msg_alumno, alumno_email)
+    res_alumno = await _dispatch_email_multichannel(
+        alumno_email,
+        alumno_subject,
+        alumno_html,
+        f"Hola {alumno_nombre}, tu cuenta ha sido autorizada y habilitada."
+    )
     return res_tutor and res_alumno
 

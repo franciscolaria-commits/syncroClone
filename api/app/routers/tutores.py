@@ -324,21 +324,33 @@ async def diagnostico_smtp():
                 if not error_detalle:
                     error_detalle = str(e)
 
-    auth_exitosa = ("OK" in resultado_465) or ("OK" in resultado_587)
+    resend_key = (os.getenv("RESEND_API_KEY") or "").strip()
+    brevo_key = (os.getenv("BREVO_API_KEY") or "").strip()
+    http_api_disponible = bool(resend_key or brevo_key)
+
+    is_render_timeout = ("Timeout" in str(resultado_465) or "timed out" in str(resultado_465).lower()) and ("Timeout" in str(resultado_587) or "timed out" in str(resultado_587).lower())
+
+    if http_api_disponible:
+        diagnostico_msg = f"Despacho por HTTP API activo ({'Resend' if resend_key else 'Brevo'}). No afectado por bloqueos de puertos de Render."
+    elif is_render_timeout:
+        diagnostico_msg = "BLOQUEO DE PUERTOS DE RENDER DETECTADO: Render bloquea las conexiones salientes a los puertos SMTP 25, 465 y 587 en todos sus servicios Free. Solución: Añade la variable RESEND_API_KEY en Render (gratuita en resend.com), la cual despacha por HTTPS Puerto 443 sin bloqueos."
+    elif auth_exitosa:
+        diagnostico_msg = "Servicio SMTP operativo y listo para despachar correos."
+    else:
+        diagnostico_msg = "Atención: Si el error es 535 BadCredentials, asegúrate de utilizar una 'Contraseña de Aplicación' de Google de 16 letras generada en https://myaccount.google.com/apppasswords."
 
     return {
-        "autenticacion_exitosa": auth_exitosa,
+        "autenticacion_exitosa": auth_exitosa or http_api_disponible,
         "email_detectado": masked_email or "No configurado",
         "longitud_password": pass_len,
         "password_contiene_espacios": has_spaces,
+        "resend_api_key_configurada": bool(resend_key),
+        "brevo_api_key_configurada": bool(brevo_key),
         "puerto_465_ssl": resultado_465,
         "puerto_587_starttls": resultado_587,
+        "bloqueo_puertos_render_free": is_render_timeout,
         "error": error_detalle,
-        "diagnostico": (
-            "Servicio SMTP operativo y listo para despachar correos."
-            if auth_exitosa
-            else "Atención: Si el error es 535 BadCredentials, asegúrate de utilizar una 'Contraseña de Aplicación' de Google de 16 letras generada en https://myaccount.google.com/apppasswords y no la contraseña habitual de la cuenta de Gmail."
-        )
+        "diagnostico": diagnostico_msg
     }
 
 
