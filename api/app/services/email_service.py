@@ -1,9 +1,69 @@
 import os
+from pathlib import Path
 from email.message import EmailMessage
 import aiosmtplib
+from dotenv import load_dotenv
 
-SMTP_EMAIL = os.getenv("SMTP_EMAIL")
-SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
+# Asegurar carga de variables de entorno desde api/.env o root .env
+base_dir = Path(__file__).resolve().parent.parent.parent
+for env_candidate in [base_dir / ".env", base_dir.parent / ".env"]:
+    if env_candidate.exists():
+        load_dotenv(dotenv_path=env_candidate)
+
+def get_smtp_credentials():
+    """
+    Recupera credenciales SMTP exclusivamente desde variables de entorno.
+    Limpia comillas accidentales en variables de entorno.
+    """
+    raw_email = os.getenv("SMTP_EMAIL", "")
+    raw_pass = os.getenv("SMTP_PASSWORD", "")
+    smtp_email = raw_email.strip().strip('"').strip("'")
+    smtp_pass = raw_pass.strip().strip('"').strip("'")
+    return smtp_email, smtp_pass
+
+async def _send_smtp_robust(message: EmailMessage, recipient: str) -> bool:
+    """
+    Envío SMTP de alta resiliencia para entornos cloud:
+    Intenta Puerto 465 (SSL directo) y si falla o hay timeout en la nube,
+    reintenta automáticamente por Puerto 587 (STARTTLS).
+    """
+    smtp_email, smtp_password = get_smtp_credentials()
+    if not smtp_email or not smtp_password:
+        print(f"[EmailService] Error: Credenciales SMTP no configuradas. No se puede enviar a {recipient}.")
+        return False
+
+    # Intento 1: Puerto 465 SSL directo
+    try:
+        await aiosmtplib.send(
+            message,
+            hostname="smtp.gmail.com",
+            port=465,
+            use_tls=True,
+            username=smtp_email,
+            password=smtp_password,
+            timeout=15,
+        )
+        print(f"[EmailService] Correo enviado exitosamente a {recipient} via puerto 465 (SSL)")
+        return True
+    except Exception as e1:
+        print(f"[EmailService] Puerto 465 SSL no disponible para {recipient}: {e1}. Reintentando con puerto 587 (STARTTLS)...")
+
+    # Intento 2: Puerto 587 STARTTLS
+    try:
+        await aiosmtplib.send(
+            message,
+            hostname="smtp.gmail.com",
+            port=587,
+            start_tls=True,
+            username=smtp_email,
+            password=smtp_password,
+            timeout=15,
+        )
+        print(f"[EmailService] Correo enviado exitosamente a {recipient} via puerto 587 (STARTTLS)")
+        return True
+    except Exception as e2:
+        print(f"[EmailService] CRÍTICO: Fallaron ambos puertos 465 y 587 para {recipient}: {e2}")
+        return False
 
 async def send_payment_reminder_email(alumno_email: str, alumno_nombre: str, entrenador_nombre: str, is_due_today: bool):
     """
@@ -11,7 +71,8 @@ async def send_payment_reminder_email(alumno_email: str, alumno_nombre: str, ent
     is_due_today = True -> El pago vence hoy.
     is_due_today = False -> El pago vence en 2 días.
     """
-    if not SMTP_EMAIL or not SMTP_PASSWORD:
+    smtp_email, _ = get_smtp_credentials()
+    if not smtp_email:
         print("Error: SMTP credentials not set. Cannot send email.")
         return
 
@@ -108,25 +169,15 @@ async def send_payment_reminder_email(alumno_email: str, alumno_nombre: str, ent
     </html>
     """
 
+    smtp_email, _ = get_smtp_credentials()
     message = EmailMessage()
-    message["From"] = f"Syncro Notificaciones <{SMTP_EMAIL}>"
+    message["From"] = f"Syncro Notificaciones <{smtp_email}>"
     message["To"] = alumno_email
     message["Subject"] = subject
     message.set_content("Por favor habilita HTML para ver este correo.")
     message.add_alternative(html_content, subtype="html")
 
-    try:
-        await aiosmtplib.send(
-            message,
-            hostname="smtp.gmail.com",
-            port=465,
-            use_tls=True,
-            username=SMTP_EMAIL,
-            password=SMTP_PASSWORD,
-        )
-        print(f"Email sent successfully to {alumno_email}")
-    except Exception as e:
-        print(f"Failed to send email to {alumno_email}: {e}")
+    await _send_smtp_robust(message, alumno_email)
 
 
 async def send_parental_consent_request_email(tutor_email: str, alumno_nombre: str, entrenador_nombre: str, token: str):
@@ -135,7 +186,8 @@ async def send_parental_consent_request_email(tutor_email: str, alumno_nombre: s
     cargas de peso, métricas y asistencia), personas con acceso autorizado, canales de revocación
     y botón con enlace seguro.
     """
-    if not SMTP_EMAIL or not SMTP_PASSWORD:
+    smtp_email, _ = get_smtp_credentials()
+    if not smtp_email:
         print("Error: SMTP credentials not set. Cannot send parental consent email.")
         return
 
@@ -319,25 +371,16 @@ async def send_parental_consent_request_email(tutor_email: str, alumno_nombre: s
     </html>
     """
 
+    smtp_email, _ = get_smtp_credentials()
     message = EmailMessage()
-    message["From"] = f"Syncro Privacidad y Cumplimiento <{SMTP_EMAIL}>"
+    message["From"] = f"Syncro Privacidad <{smtp_email}>"
+    message["Reply-To"] = "soporte@syncro.app"
     message["To"] = tutor_email
     message["Subject"] = subject
     message.set_content(f"Autorización parental requerida para {alumno_nombre}. Ingrese a {auth_url} para autorizar.")
     message.add_alternative(html_content, subtype="html")
 
-    try:
-        await aiosmtplib.send(
-            message,
-            hostname="smtp.gmail.com",
-            port=465,
-            use_tls=True,
-            username=SMTP_EMAIL,
-            password=SMTP_PASSWORD,
-        )
-        print(f"Parental consent request email sent successfully to {tutor_email}")
-    except Exception as e:
-        print(f"Failed to send parental consent request email to {tutor_email}: {e}")
+    await _send_smtp_robust(message, tutor_email)
 
 
 async def send_parental_consent_confirmation_email(tutor_email: str, alumno_email: str, alumno_nombre: str):
@@ -345,7 +388,8 @@ async def send_parental_consent_confirmation_email(tutor_email: str, alumno_emai
     Notificación bidireccional inmediata al confirmarse el consentimiento parental.
     Envía confirmación formal al tutor legal y notificación de desbloqueo al alumno.
     """
-    if not SMTP_EMAIL or not SMTP_PASSWORD:
+    smtp_email, _ = get_smtp_credentials()
+    if not smtp_email:
         print("Error: SMTP credentials not set. Cannot send confirmation emails.")
         return
 
@@ -430,28 +474,22 @@ async def send_parental_consent_confirmation_email(tutor_email: str, alumno_emai
     """
 
     # Enviar al tutor
-    try:
-        msg_tutor = EmailMessage()
-        msg_tutor["From"] = f"Syncro Privacidad <{SMTP_EMAIL}>"
-        msg_tutor["To"] = tutor_email
-        msg_tutor["Subject"] = tutor_subject
-        msg_tutor.set_content(f"Autorización parental confirmada con éxito para {alumno_nombre}.")
-        msg_tutor.add_alternative(tutor_html, subtype="html")
-        await aiosmtplib.send(msg_tutor, hostname="smtp.gmail.com", port=465, use_tls=True, username=SMTP_EMAIL, password=SMTP_PASSWORD)
-        print(f"Confirmation email sent to tutor: {tutor_email}")
-    except Exception as e:
-        print(f"Failed to send confirmation email to tutor {tutor_email}: {e}")
+    msg_tutor = EmailMessage()
+    msg_tutor["From"] = f"Syncro Privacidad <{smtp_email}>"
+    msg_tutor["Reply-To"] = "soporte@syncro.app"
+    msg_tutor["To"] = tutor_email
+    msg_tutor["Subject"] = tutor_subject
+    msg_tutor.set_content(f"Autorización parental confirmada con éxito para {alumno_nombre}.")
+    msg_tutor.add_alternative(tutor_html, subtype="html")
+    await _send_smtp_robust(msg_tutor, tutor_email)
 
     # Enviar al alumno
-    try:
-        msg_alumno = EmailMessage()
-        msg_alumno["From"] = f"Syncro Notificaciones <{SMTP_EMAIL}>"
-        msg_alumno["To"] = alumno_email
-        msg_alumno["Subject"] = alumno_subject
-        msg_alumno.set_content(f"Hola {alumno_nombre}, tu cuenta ha sido autorizada y habilitada.")
-        msg_alumno.add_alternative(alumno_html, subtype="html")
-        await aiosmtplib.send(msg_alumno, hostname="smtp.gmail.com", port=465, use_tls=True, username=SMTP_EMAIL, password=SMTP_PASSWORD)
-        print(f"Unlock notification email sent to student: {alumno_email}")
-    except Exception as e:
-        print(f"Failed to send unlock notification email to student {alumno_email}: {e}")
+    msg_alumno = EmailMessage()
+    msg_alumno["From"] = f"Syncro Notificaciones <{smtp_email}>"
+    msg_alumno["Reply-To"] = "soporte@syncro.app"
+    msg_alumno["To"] = alumno_email
+    msg_alumno["Subject"] = alumno_subject
+    msg_alumno.set_content(f"Hola {alumno_nombre}, tu cuenta ha sido autorizada y habilitada.")
+    msg_alumno.add_alternative(alumno_html, subtype="html")
+    await _send_smtp_robust(msg_alumno, alumno_email)
 

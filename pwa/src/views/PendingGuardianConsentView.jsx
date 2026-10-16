@@ -1,24 +1,69 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { api, logout } from '../services/api.js';
 import { useModal } from '../components/ModalProvider.jsx';
-import { ShieldAlert, Mail, Send, Edit3, RefreshCw, LogOut, CheckCircle2 } from 'lucide-react';
+import { ShieldAlert, Mail, Send, Edit3, RefreshCw, LogOut, CheckCircle2, Copy, Check, ExternalLink } from 'lucide-react';
 
 export default function PendingGuardianConsentView({ user, onUpdateUser }) {
   const modal = useModal();
   const [tutorEmail, setTutorEmail] = useState(user?.email_tutor || '');
+  const [authUrl, setAuthUrl] = useState('');
+  const [copied, setCopied] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [newEmail, setNewEmail] = useState(user?.email_tutor || '');
   const [loadingAction, setLoadingAction] = useState(null);
   const [feedbackMessage, setFeedbackMessage] = useState(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function fetchPendingLink() {
+      try {
+        const data = await api.get('/api/v1/tutores/mi-enlace');
+        if (!isMounted) return;
+        if (data?.enlace_autorizacion) {
+          setAuthUrl(data.enlace_autorizacion);
+        }
+        if (data?.email_tutor) {
+          setTutorEmail(data.email_tutor);
+        }
+      } catch (err) {
+        console.warn('[PendingGuardianConsent] No se pudo recuperar enlace directo inicial:', err);
+      }
+    }
+    fetchPendingLink();
+    return () => { isMounted = false; };
+  }, []);
+
+  const handleCopyLink = async () => {
+    if (!authUrl) return;
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(authUrl);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = authUrl;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      setCopied(true);
+      setTimeout(() => setCopied(false), 3000);
+    } catch (e) {
+      console.error('Error al copiar enlace', e);
+    }
+  };
 
   const handleResend = async () => {
     setLoadingAction('resend');
     setFeedbackMessage(null);
     try {
       const res = await api.post('/api/v1/tutores/reenviar-solicitud', {});
+      if (res.enlace_autorizacion) {
+        setAuthUrl(res.enlace_autorizacion);
+      }
       setFeedbackMessage({
         type: 'success',
-        text: res.message || 'Se ha reenviado el correo de autorización a tu tutor con éxito.'
+        text: res.message || 'Se ha reenviado el correo de autorización a tu tutor con éxito. Recuerda revisar la carpeta de Spam.'
       });
     } catch (err) {
       setFeedbackMessage({
@@ -44,6 +89,9 @@ export default function PendingGuardianConsentView({ user, onUpdateUser }) {
         email_tutor: newEmail.trim()
       });
       setTutorEmail(res.email_tutor || newEmail.trim());
+      if (res.enlace_autorizacion) {
+        setAuthUrl(res.enlace_autorizacion);
+      }
       setIsEditModalOpen(false);
       setFeedbackMessage({
         type: 'success',
@@ -156,6 +204,58 @@ export default function PendingGuardianConsentView({ user, onUpdateUser }) {
             <p className="text-[11px] text-zinc-500 mt-1">
               Enviamos un enlace seguro de 30 días con los fines del tratamiento y la declaración jurada.
             </p>
+          </div>
+
+          {/* Direct Link Box */}
+          {authUrl && (
+            <div className="w-full bg-zinc-950/80 border border-zinc-800 rounded-xl p-4 mb-4 flex flex-col gap-2 text-left">
+              <div className="flex items-center justify-between text-xs text-zinc-400 font-semibold">
+                <span className="flex items-center gap-1.5 text-emerald-400">
+                  <ExternalLink size={13} />
+                  Enlace directo de autorización:
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  readOnly
+                  value={authUrl}
+                  className="w-full bg-zinc-900/90 border border-zinc-700/80 rounded-lg px-3 py-2 text-xs text-zinc-300 font-mono select-all outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={handleCopyLink}
+                  className={`px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 flex-shrink-0 ${
+                    copied
+                      ? 'bg-emerald-500 text-black'
+                      : 'bg-emerald-600/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-600/30'
+                  }`}
+                  title="Copiar enlace"
+                >
+                  {copied ? <Check size={14} /> : <Copy size={14} />}
+                  {copied ? '¡Copiado!' : 'Copiar'}
+                </button>
+                <a
+                  href={authUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 flex items-center justify-center flex-shrink-0 transition-colors"
+                  title="Abrir en nueva pestaña"
+                >
+                  <ExternalLink size={14} />
+                </a>
+              </div>
+              <p className="text-[11px] text-zinc-500">
+                💡 Si el correo tarda o tu tutor está presente, puedes abrirlo directamente o enviárselo por WhatsApp.
+              </p>
+            </div>
+          )}
+
+          {/* Spam / Promociones Notice */}
+          <div className="w-full bg-amber-500/10 border border-amber-500/25 rounded-xl p-3.5 mb-4 text-left flex items-start gap-2.5">
+            <div className="text-base leading-none mt-0.5">📬</div>
+            <div className="text-[11px] text-zinc-300 leading-relaxed">
+              <b className="text-amber-400">¿No llega el correo?</b> Revisa la carpeta de <b>Spam / Correo no deseado</b> o la pestaña <b>Promociones</b> de la casilla del tutor. También puedes copiar el enlace directo de arriba.
+            </div>
           </div>
 
           {/* Feedback message banner */}

@@ -1,3 +1,4 @@
+import os
 import secrets
 from datetime import datetime, timedelta
 from typing import Optional
@@ -158,9 +159,9 @@ def autorizar_consentimiento(
 
 @router.post("/reenviar-solicitud")
 def reenviar_solicitud(
+    background_tasks: BackgroundTasks,
     payload: Optional[ReenviarSolicitudRequest] = None,
     current_user: Usuario = Depends(get_current_user),
-    background_tasks: BackgroundTasks = BackgroundTasks(),
     db: Session = Depends(get_db)
 ):
     """
@@ -248,7 +249,66 @@ def reenviar_solicitud(
         new_token
     )
 
+    frontend_url = os.getenv("FRONTEND_URL", "https://syncro-clone.vercel.app").rstrip("/")
+    auth_url = f"{frontend_url}/consentimiento-tutor?token={new_token}"
+
     return {
-        "message": f"Solicitud de autorización reenviada exitosamente a {alumno.email_tutor}",
-        "email_tutor": alumno.email_tutor
+        "message": f"Solicitud de autorización despachada a {alumno.email_tutor}",
+        "email_tutor": alumno.email_tutor,
+        "token": new_token,
+        "enlace_autorizacion": auth_url
+    }
+
+
+@router.get("/mi-enlace")
+def obtener_mi_enlace(
+    current_user: Usuario = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Permite al alumno menor autenticado obtener su enlace de autorización vigente
+    para que pueda copiarlo y enviárselo a su tutor legal directamente (por WhatsApp o similar).
+    """
+    if current_user.rol != "alumno":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acceso exclusivo para alumnos."
+        )
+
+    alumno = db.query(Alumno).filter(Alumno.id_usuario == current_user.id_usuario).first()
+    if not alumno or not alumno.requiere_autorizacion_tutor:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Esta cuenta no requiere autorización parental."
+        )
+
+    consentimiento = db.query(ConsentimientoMenor).filter(
+        ConsentimientoMenor.id_alumno == alumno.id_usuario,
+        ConsentimientoMenor.estado == "pendiente"
+    ).order_by(ConsentimientoMenor.fecha_solicitud.desc()).first()
+
+    if not consentimiento:
+        new_token = secrets.token_urlsafe(32)
+        consentimiento = ConsentimientoMenor(
+            id_alumno=alumno.id_usuario,
+            email_tutor=alumno.email_tutor or "tutor@syncro.app",
+            token_autorizacion=new_token,
+            fecha_solicitud=datetime.utcnow(),
+            fecha_expiracion=datetime.utcnow() + timedelta(days=30),
+            version_politica="v1.0-2026-10",
+            estado="pendiente"
+        )
+        db.add(consentimiento)
+        db.commit()
+        db.refresh(consentimiento)
+
+    frontend_url = os.getenv("FRONTEND_URL", "https://syncro-clone.vercel.app").rstrip("/")
+    auth_url = f"{frontend_url}/consentimiento-tutor?token={consentimiento.token_autorizacion}"
+
+    return {
+        "email_tutor": consentimiento.email_tutor,
+        "token": consentimiento.token_autorizacion,
+        "enlace_autorizacion": auth_url,
+        "fecha_expiracion": consentimiento.fecha_expiracion,
+        "autorizado": alumno.autorizacion_tutor_completada
     }
