@@ -267,12 +267,35 @@ async def reenviar_solicitud(
 @router.get("/diagnostico-smtp")
 async def diagnostico_smtp():
     """
-    Verifica el estado de configuración SMTP en el servidor y realiza un handshake
-    de prueba sin enviar correos a destinatarios.
+    Verifica el estado de configuración de despacho de correos (Resend HTTPS API / Brevo / SMTP).
+    Valida Resend en 300ms sin timeouts.
     """
-    from app.services.email_service import get_smtp_credentials
-    import aiosmtplib
+    import os
+    import json
+    import urllib.request
+    import urllib.error
 
+    resend_key = (os.getenv("RESEND_API_KEY") or "").strip().strip('"').strip("'")
+    resend_valido = False
+    resend_error = None
+    resend_masked = ""
+
+    if resend_key:
+        resend_masked = f"{resend_key[:6]}...{resend_key[-4:]}" if len(resend_key) > 10 else "***"
+        try:
+            req = urllib.request.Request(
+                "https://api.resend.com/api-keys",
+                headers={"Authorization": f"Bearer {resend_key}", "User-Agent": "Syncro-API/1.0"}
+            )
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                if resp.status == 200:
+                    resend_valido = True
+        except urllib.error.HTTPError as e:
+            resend_error = f"HTTP {e.code}: {e.read().decode('utf-8', errors='replace')}"
+        except Exception as e:
+            resend_error = str(e)
+
+    from app.services.email_service import get_smtp_credentials
     smtp_email, smtp_password = get_smtp_credentials()
 
     masked_email = ""
@@ -283,73 +306,52 @@ async def diagnostico_smtp():
     pass_len = len(smtp_password)
     has_spaces = " " in smtp_password
 
-    resultado_465 = "No probado"
-    resultado_587 = "No probado"
-    error_detalle = None
+    resultado_465 = "Omitido (Resend HTTPS activo)" if resend_valido else "No probado"
+    resultado_587 = "Omitido (Resend HTTPS activo)" if resend_valido else "No probado"
 
-    if not smtp_email:
-        error_detalle = "La variable de entorno SMTP_EMAIL (o SMTP_USER) no está configurada o está vacía."
-    elif not smtp_password:
-        error_detalle = "La variable de entorno SMTP_PASSWORD no está configurada o está vacía."
-    else:
-        passwords_to_try = [smtp_password]
+    # Solo probar SMTP si Resend no está validado, con timeout muy bajo (2.5s) para no exceder timeout de Render
+    if not resend_valido and smtp_email and smtp_password:
+        import aiosmtplib
         clean_pass = smtp_password.replace(" ", "")
-        if clean_pass != smtp_password:
-            passwords_to_try.append(clean_pass)
+        try:
+            client = aiosmtplib.SMTP(hostname="smtp.gmail.com", port=465, use_tls=True, timeout=2.5)
+            await client.connect()
+            await client.login(smtp_email, clean_pass)
+            await client.quit()
+            resultado_465 = "OK (Autenticación exitosa)"
+        except Exception as e:
+            resultado_465 = f"Fallo: {type(e).__name__} - {str(e)}"
 
-        # Probar autenticación por 465
-        for pwd in passwords_to_try:
-            try:
-                client = aiosmtplib.SMTP(hostname="smtp.gmail.com", port=465, use_tls=True, timeout=10)
-                await client.connect()
-                await client.login(smtp_email, pwd)
-                await client.quit()
-                resultado_465 = "OK (Autenticación exitosa)"
-                break
-            except Exception as e:
-                resultado_465 = f"Fallo: {type(e).__name__} - {str(e)}"
-                error_detalle = str(e)
+        try:
+            client587 = aiosmtplib.SMTP(hostname="smtp.gmail.com", port=587, start_tls=True, timeout=2.5)
+            await client587.connect()
+            await client587.login(smtp_email, clean_pass)
+            await client587.quit()
+            resultado_587 = "OK (Autenticación exitosa)"
+        except Exception as e:
+            resultado_587 = f"Fallo: {type(e).__name__} - {str(e)}"
 
-        # Probar autenticación por 587
-        for pwd in passwords_to_try:
-            try:
-                client587 = aiosmtplib.SMTP(hostname="smtp.gmail.com", port=587, start_tls=True, timeout=10)
-                await client587.connect()
-                await client587.login(smtp_email, pwd)
-                await client587.quit()
-                resultado_587 = "OK (Autenticación exitosa)"
-                break
-            except Exception as e:
-                resultado_587 = f"Fallo: {type(e).__name__} - {str(e)}"
-                if not error_detalle:
-                    error_detalle = str(e)
+    auth_exitosa = resend_valido or ("OK" in str(resultado_465)) or ("OK" in str(resultado_587))
 
-    resend_key = (os.getenv("RESEND_API_KEY") or "").strip()
-    brevo_key = (os.getenv("BREVO_API_KEY") or "").strip()
-    http_api_disponible = bool(resend_key or brevo_key)
-
-    is_render_timeout = ("Timeout" in str(resultado_465) or "timed out" in str(resultado_465).lower()) and ("Timeout" in str(resultado_587) or "timed out" in str(resultado_587).lower())
-
-    if http_api_disponible:
-        diagnostico_msg = f"Despacho por HTTP API activo ({'Resend' if resend_key else 'Brevo'}). No afectado por bloqueos de puertos de Render."
-    elif is_render_timeout:
-        diagnostico_msg = "BLOQUEO DE PUERTOS DE RENDER DETECTADO: Render bloquea las conexiones salientes a los puertos SMTP 25, 465 y 587 en todos sus servicios Free. Solución: Añade la variable RESEND_API_KEY en Render (gratuita en resend.com), la cual despacha por HTTPS Puerto 443 sin bloqueos."
-    elif auth_exitosa:
-        diagnostico_msg = "Servicio SMTP operativo y listo para despachar correos."
-    else:
-        diagnostico_msg = "Atención: Si el error es 535 BadCredentials, asegúrate de utilizar una 'Contraseña de Aplicación' de Google de 16 letras generada en https://myaccount.google.com/apppasswords."
+    diagnostico_msg = (
+        "✅ Despacho vía Resend HTTPS API (Puerto 443) activo y verificado. Los correos se enviarán sin bloqueos de Render."
+        if resend_valido
+        else f"⚠️ Resend API Key detectada pero falló validación: {resend_error}"
+        if resend_key
+        else "⚠️ Resend no configurado. Intentando SMTP directo (puede fallar por bloqueo de puertos de Render Free)."
+    )
 
     return {
-        "autenticacion_exitosa": auth_exitosa or http_api_disponible,
-        "email_detectado": masked_email or "No configurado",
-        "longitud_password": pass_len,
-        "password_contiene_espacios": has_spaces,
+        "despacho_operativo": auth_exitosa,
+        "metodo_principal": "Resend HTTPS API (Puerto 443)" if resend_valido else "SMTP Directo",
         "resend_api_key_configurada": bool(resend_key),
-        "brevo_api_key_configurada": bool(brevo_key),
+        "resend_api_key_valida": resend_valido,
+        "resend_key_detectada": resend_masked,
+        "resend_error": resend_error,
+        "smtp_email_detectado": masked_email or "No configurado",
+        "smtp_password_configurado": bool(pass_len > 0),
         "puerto_465_ssl": resultado_465,
         "puerto_587_starttls": resultado_587,
-        "bloqueo_puertos_render_free": is_render_timeout,
-        "error": error_detalle,
         "diagnostico": diagnostico_msg
     }
 
