@@ -61,10 +61,17 @@ export default function PendingGuardianConsentView({ user, onUpdateUser }) {
       if (res.enlace_autorizacion) {
         setAuthUrl(res.enlace_autorizacion);
       }
-      setFeedbackMessage({
-        type: 'success',
-        text: res.message || 'Se ha reenviado el correo de autorización a tu tutor con éxito. Recuerda revisar la carpeta de Spam.'
-      });
+      if (res.email_enviado === false) {
+        setFeedbackMessage({
+          type: 'error',
+          text: res.message || 'El enlace se generó correctamente, pero el servidor no pudo entregar el email. Puedes copiar el enlace directo abajo.'
+        });
+      } else {
+        setFeedbackMessage({
+          type: 'success',
+          text: res.message || 'Se ha reenviado el correo de autorización a tu tutor con éxito. Recuerda revisar la carpeta de Spam.'
+        });
+      }
     } catch (err) {
       setFeedbackMessage({
         type: 'error',
@@ -93,10 +100,17 @@ export default function PendingGuardianConsentView({ user, onUpdateUser }) {
         setAuthUrl(res.enlace_autorizacion);
       }
       setIsEditModalOpen(false);
-      setFeedbackMessage({
-        type: 'success',
-        text: `Correo del tutor actualizado a ${res.email_tutor || newEmail.trim()} y enlace despachado.`
-      });
+      if (res.email_enviado === false) {
+        setFeedbackMessage({
+          type: 'error',
+          text: res.message || `Correo actualizado a ${res.email_tutor || newEmail.trim()}, pero no se pudo entregar el email. Copia el enlace directo abajo.`
+        });
+      } else {
+        setFeedbackMessage({
+          type: 'success',
+          text: res.message || `Correo del tutor actualizado a ${res.email_tutor || newEmail.trim()} y enlace despachado.`
+        });
+      }
 
       // Actualizar sesión local
       const localUser = JSON.parse(localStorage.getItem('fitness_user') || '{}');

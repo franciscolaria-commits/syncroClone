@@ -13,11 +13,29 @@ for env_candidate in [base_dir / ".env", base_dir.parent / ".env"]:
 def get_smtp_credentials():
     """
     Recupera credenciales SMTP exclusivamente desde variables de entorno.
-    Limpia comillas accidentales en variables de entorno.
+    Soporta múltiples aliases comunes de configuración cloud (SMTP_EMAIL, SMTP_USER, etc.).
+    Limpia espacios y comillas accidentales.
     """
-    raw_email = os.getenv("SMTP_EMAIL", "")
-    raw_pass = os.getenv("SMTP_PASSWORD", "")
-    smtp_email = raw_email.strip().strip('"').strip("'")
+    raw_email = (
+        os.getenv("SMTP_EMAIL")
+        or os.getenv("SMTP_USER")
+        or os.getenv("EMAIL_USER")
+        or os.getenv("MAIL_USERNAME")
+        or os.getenv("SMTP_MAIL")
+        or os.getenv("smtp_email")
+        or os.getenv("smtp_user")
+        or ""
+    )
+    raw_pass = (
+        os.getenv("SMTP_PASSWORD")
+        or os.getenv("SMTP_PASS")
+        or os.getenv("EMAIL_PASSWORD")
+        or os.getenv("MAIL_PASSWORD")
+        or os.getenv("smtp_password")
+        or os.getenv("smtp_pass")
+        or ""
+    )
+    smtp_email = raw_email.strip().strip('"').strip("'").lower()
     smtp_pass = raw_pass.strip().strip('"').strip("'")
     return smtp_email, smtp_pass
 
@@ -26,44 +44,54 @@ async def _send_smtp_robust(message: EmailMessage, recipient: str) -> bool:
     Envío SMTP de alta resiliencia para entornos cloud:
     Intenta Puerto 465 (SSL directo) y si falla o hay timeout en la nube,
     reintenta automáticamente por Puerto 587 (STARTTLS).
+    Maneja contraseñas de aplicación con y sin espacios.
     """
     smtp_email, smtp_password = get_smtp_credentials()
     if not smtp_email or not smtp_password:
-        print(f"[EmailService] Error: Credenciales SMTP no configuradas. No se puede enviar a {recipient}.")
+        print(f"[EmailService] Error: Credenciales SMTP no configuradas (email='{smtp_email}', pass_len={len(smtp_password)}). No se puede enviar a {recipient}.")
         return False
+
+    passwords_to_try = [smtp_password]
+    clean_pass = smtp_password.replace(" ", "")
+    if clean_pass != smtp_password:
+        passwords_to_try.append(clean_pass)
 
     # Intento 1: Puerto 465 SSL directo
-    try:
-        await aiosmtplib.send(
-            message,
-            hostname="smtp.gmail.com",
-            port=465,
-            use_tls=True,
-            username=smtp_email,
-            password=smtp_password,
-            timeout=15,
-        )
-        print(f"[EmailService] Correo enviado exitosamente a {recipient} via puerto 465 (SSL)")
-        return True
-    except Exception as e1:
-        print(f"[EmailService] Puerto 465 SSL no disponible para {recipient}: {e1}. Reintentando con puerto 587 (STARTTLS)...")
+    for pwd in passwords_to_try:
+        try:
+            await aiosmtplib.send(
+                message,
+                hostname="smtp.gmail.com",
+                port=465,
+                use_tls=True,
+                username=smtp_email,
+                password=pwd,
+                timeout=15,
+            )
+            print(f"[EmailService] Correo enviado exitosamente a {recipient} via puerto 465 (SSL)")
+            return True
+        except Exception as e1:
+            print(f"[EmailService] Puerto 465 SSL fallo para {recipient}: {type(e1).__name__} - {e1}")
 
     # Intento 2: Puerto 587 STARTTLS
-    try:
-        await aiosmtplib.send(
-            message,
-            hostname="smtp.gmail.com",
-            port=587,
-            start_tls=True,
-            username=smtp_email,
-            password=smtp_password,
-            timeout=15,
-        )
-        print(f"[EmailService] Correo enviado exitosamente a {recipient} via puerto 587 (STARTTLS)")
-        return True
-    except Exception as e2:
-        print(f"[EmailService] CRÍTICO: Fallaron ambos puertos 465 y 587 para {recipient}: {e2}")
-        return False
+    for pwd in passwords_to_try:
+        try:
+            await aiosmtplib.send(
+                message,
+                hostname="smtp.gmail.com",
+                port=587,
+                start_tls=True,
+                username=smtp_email,
+                password=pwd,
+                timeout=15,
+            )
+            print(f"[EmailService] Correo enviado exitosamente a {recipient} via puerto 587 (STARTTLS)")
+            return True
+        except Exception as e2:
+            print(f"[EmailService] Puerto 587 STARTTLS fallo para {recipient}: {type(e2).__name__} - {e2}")
+
+    print(f"[EmailService] CRÍTICO: Fallaron todos los puertos e intentos para enviar a {recipient}")
+    return False
 
 async def send_payment_reminder_email(alumno_email: str, alumno_nombre: str, entrenador_nombre: str, is_due_today: bool):
     """
@@ -180,16 +208,16 @@ async def send_payment_reminder_email(alumno_email: str, alumno_nombre: str, ent
     await _send_smtp_robust(message, alumno_email)
 
 
-async def send_parental_consent_request_email(tutor_email: str, alumno_nombre: str, entrenador_nombre: str, token: str):
+async def send_parental_consent_request_email(tutor_email: str, alumno_nombre: str, entrenador_nombre: str, token: str) -> bool:
     """
     Despacha plantilla HTML responsiva con los fines del tratamiento (planificación deportiva,
     cargas de peso, métricas y asistencia), personas con acceso autorizado, canales de revocación
-    y botón con enlace seguro.
+    y botón con enlace seguro. Retorna True si se despachó con éxito, False en caso contrario.
     """
-    smtp_email, _ = get_smtp_credentials()
-    if not smtp_email:
-        print("Error: SMTP credentials not set. Cannot send parental consent email.")
-        return
+    smtp_email, smtp_password = get_smtp_credentials()
+    if not smtp_email or not smtp_password:
+        print(f"[EmailService] Error: Credenciales SMTP incompletas (email='{smtp_email}', pass_len={len(smtp_password)}). No se despacha.")
+        return False
 
     frontend_url = os.getenv("FRONTEND_URL", "https://syncro-clone.vercel.app").rstrip("/")
     auth_url = f"{frontend_url}/consentimiento-tutor?token={token}"
@@ -374,13 +402,13 @@ async def send_parental_consent_request_email(tutor_email: str, alumno_nombre: s
     smtp_email, _ = get_smtp_credentials()
     message = EmailMessage()
     message["From"] = f"Syncro Privacidad <{smtp_email}>"
-    message["Reply-To"] = "soporte@syncro.app"
+    message["Reply-To"] = smtp_email
     message["To"] = tutor_email
     message["Subject"] = subject
     message.set_content(f"Autorización parental requerida para {alumno_nombre}. Ingrese a {auth_url} para autorizar.")
     message.add_alternative(html_content, subtype="html")
 
-    await _send_smtp_robust(message, tutor_email)
+    return await _send_smtp_robust(message, tutor_email)
 
 
 async def send_parental_consent_confirmation_email(tutor_email: str, alumno_email: str, alumno_nombre: str):
@@ -476,20 +504,21 @@ async def send_parental_consent_confirmation_email(tutor_email: str, alumno_emai
     # Enviar al tutor
     msg_tutor = EmailMessage()
     msg_tutor["From"] = f"Syncro Privacidad <{smtp_email}>"
-    msg_tutor["Reply-To"] = "soporte@syncro.app"
+    msg_tutor["Reply-To"] = smtp_email
     msg_tutor["To"] = tutor_email
     msg_tutor["Subject"] = tutor_subject
     msg_tutor.set_content(f"Autorización parental confirmada con éxito para {alumno_nombre}.")
     msg_tutor.add_alternative(tutor_html, subtype="html")
-    await _send_smtp_robust(msg_tutor, tutor_email)
+    res_tutor = await _send_smtp_robust(msg_tutor, tutor_email)
 
     # Enviar al alumno
     msg_alumno = EmailMessage()
     msg_alumno["From"] = f"Syncro Notificaciones <{smtp_email}>"
-    msg_alumno["Reply-To"] = "soporte@syncro.app"
+    msg_alumno["Reply-To"] = smtp_email
     msg_alumno["To"] = alumno_email
     msg_alumno["Subject"] = alumno_subject
     msg_alumno.set_content(f"Hola {alumno_nombre}, tu cuenta ha sido autorizada y habilitada.")
     msg_alumno.add_alternative(alumno_html, subtype="html")
-    await _send_smtp_robust(msg_alumno, alumno_email)
+    res_alumno = await _send_smtp_robust(msg_alumno, alumno_email)
+    return res_tutor and res_alumno
 

@@ -158,8 +158,7 @@ def autorizar_consentimiento(
 
 
 @router.post("/reenviar-solicitud")
-def reenviar_solicitud(
-    background_tasks: BackgroundTasks,
+async def reenviar_solicitud(
     payload: Optional[ReenviarSolicitudRequest] = None,
     current_user: Usuario = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -241,22 +240,105 @@ def reenviar_solicitud(
         if not entrenador_nombre:
             entrenador_nombre = cu.email.split("@")[0]
 
-    background_tasks.add_task(
-        send_parental_consent_request_email,
+    frontend_url = os.getenv("FRONTEND_URL", "https://syncro-clone.vercel.app").rstrip("/")
+    auth_url = f"{frontend_url}/consentimiento-tutor?token={new_token}"
+
+    enviado = await send_parental_consent_request_email(
         alumno.email_tutor,
         alumno_nombre,
         entrenador_nombre,
         new_token
     )
 
-    frontend_url = os.getenv("FRONTEND_URL", "https://syncro-clone.vercel.app").rstrip("/")
-    auth_url = f"{frontend_url}/consentimiento-tutor?token={new_token}"
+    if enviado:
+        mensaje = f"Solicitud de autorización despachada a {alumno.email_tutor}"
+    else:
+        mensaje = f"El enlace fue generado, pero el servidor no pudo entregar el correo a {alumno.email_tutor}. Puedes usar el enlace directo abajo para enviárselo por WhatsApp."
 
     return {
-        "message": f"Solicitud de autorización despachada a {alumno.email_tutor}",
+        "message": mensaje,
+        "email_enviado": enviado,
         "email_tutor": alumno.email_tutor,
         "token": new_token,
         "enlace_autorizacion": auth_url
+    }
+
+
+@router.get("/diagnostico-smtp")
+async def diagnostico_smtp():
+    """
+    Verifica el estado de configuración SMTP en el servidor y realiza un handshake
+    de prueba sin enviar correos a destinatarios.
+    """
+    from app.services.email_service import get_smtp_credentials
+    import aiosmtplib
+
+    smtp_email, smtp_password = get_smtp_credentials()
+
+    masked_email = ""
+    if smtp_email and "@" in smtp_email:
+        user_part, domain_part = smtp_email.split("@", 1)
+        masked_email = f"{user_part[:3]}***@{domain_part}"
+
+    pass_len = len(smtp_password)
+    has_spaces = " " in smtp_password
+
+    resultado_465 = "No probado"
+    resultado_587 = "No probado"
+    error_detalle = None
+
+    if not smtp_email:
+        error_detalle = "La variable de entorno SMTP_EMAIL (o SMTP_USER) no está configurada o está vacía."
+    elif not smtp_password:
+        error_detalle = "La variable de entorno SMTP_PASSWORD no está configurada o está vacía."
+    else:
+        passwords_to_try = [smtp_password]
+        clean_pass = smtp_password.replace(" ", "")
+        if clean_pass != smtp_password:
+            passwords_to_try.append(clean_pass)
+
+        # Probar autenticación por 465
+        for pwd in passwords_to_try:
+            try:
+                client = aiosmtplib.SMTP(hostname="smtp.gmail.com", port=465, use_tls=True, timeout=10)
+                await client.connect()
+                await client.login(smtp_email, pwd)
+                await client.quit()
+                resultado_465 = "OK (Autenticación exitosa)"
+                break
+            except Exception as e:
+                resultado_465 = f"Fallo: {type(e).__name__} - {str(e)}"
+                error_detalle = str(e)
+
+        # Probar autenticación por 587
+        for pwd in passwords_to_try:
+            try:
+                client587 = aiosmtplib.SMTP(hostname="smtp.gmail.com", port=587, start_tls=True, timeout=10)
+                await client587.connect()
+                await client587.login(smtp_email, pwd)
+                await client587.quit()
+                resultado_587 = "OK (Autenticación exitosa)"
+                break
+            except Exception as e:
+                resultado_587 = f"Fallo: {type(e).__name__} - {str(e)}"
+                if not error_detalle:
+                    error_detalle = str(e)
+
+    auth_exitosa = ("OK" in resultado_465) or ("OK" in resultado_587)
+
+    return {
+        "autenticacion_exitosa": auth_exitosa,
+        "email_detectado": masked_email or "No configurado",
+        "longitud_password": pass_len,
+        "password_contiene_espacios": has_spaces,
+        "puerto_465_ssl": resultado_465,
+        "puerto_587_starttls": resultado_587,
+        "error": error_detalle,
+        "diagnostico": (
+            "Servicio SMTP operativo y listo para despachar correos."
+            if auth_exitosa
+            else "Atención: Si el error es 535 BadCredentials, asegúrate de utilizar una 'Contraseña de Aplicación' de Google de 16 letras generada en https://myaccount.google.com/apppasswords y no la contraseña habitual de la cuenta de Gmail."
+        )
     }
 
 
