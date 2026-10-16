@@ -265,10 +265,12 @@ async def reenviar_solicitud(
 
 
 @router.get("/diagnostico-smtp")
-async def diagnostico_smtp():
+async def diagnostico_smtp(
+    probar_envio: Optional[str] = Query(None, description="Email de prueba para verificar despacho en tiempo real vía Resend")
+):
     """
     Verifica el estado de configuración de despacho de correos (Resend HTTPS API / Brevo / SMTP).
-    Valida Resend en 300ms sin timeouts.
+    Valida Resend en milisegundos sin timeouts. Permite enviar un correo de prueba pasando ?probar_envio=tu_email@gmail.com
     """
     import os
     import json
@@ -279,6 +281,7 @@ async def diagnostico_smtp():
     resend_valido = False
     resend_error = None
     resend_masked = ""
+    resend_tipo_permiso = "No configurada"
 
     if resend_key:
         resend_masked = f"{resend_key[:6]}...{resend_key[-4:]}" if len(resend_key) > 10 else "***"
@@ -290,12 +293,21 @@ async def diagnostico_smtp():
             with urllib.request.urlopen(req, timeout=5) as resp:
                 if resp.status == 200:
                     resend_valido = True
+                    resend_tipo_permiso = "Full Access (Acceso Total a Resend)"
         except urllib.error.HTTPError as e:
-            resend_error = f"HTTP {e.code}: {e.read().decode('utf-8', errors='replace')}"
+            raw_err = e.read().decode('utf-8', errors='replace')
+            # Resend responde HTTP 401 con 'restricted_api_key' cuando una API Key es auténtica y válida pero
+            # tiene permiso 'Sending access' (sólo envío de correos, que es el permiso estándar recomendado por seguridad).
+            if e.code == 401 and ("restricted to only send emails" in raw_err or "restricted_api_key" in raw_err):
+                resend_valido = True
+                resend_tipo_permiso = "Sending Access (Permiso exclusivo de envío de correos - Válido y Operativo)"
+                resend_error = None
+            else:
+                resend_error = f"HTTP {e.code}: {raw_err}"
         except Exception as e:
             resend_error = str(e)
 
-    from app.services.email_service import get_smtp_credentials
+    from app.services.email_service import get_smtp_credentials, probar_envio_resend
     smtp_email, smtp_password = get_smtp_credentials()
 
     masked_email = ""
@@ -304,12 +316,11 @@ async def diagnostico_smtp():
         masked_email = f"{user_part[:3]}***@{domain_part}"
 
     pass_len = len(smtp_password)
-    has_spaces = " " in smtp_password
 
-    resultado_465 = "Omitido (Resend HTTPS activo)" if resend_valido else "No probado"
-    resultado_587 = "Omitido (Resend HTTPS activo)" if resend_valido else "No probado"
+    resultado_465 = "Omitido (Resend HTTPS activo en Puerto 443)" if resend_valido else "No probado"
+    resultado_587 = "Omitido (Resend HTTPS activo en Puerto 443)" if resend_valido else "No probado"
 
-    # Solo probar SMTP si Resend no está validado, con timeout muy bajo (2.5s) para no exceder timeout de Render
+    # Solo probar SMTP si Resend no está validado, con timeout muy bajo (2.5s) para no demorar
     if not resend_valido and smtp_email and smtp_password:
         import aiosmtplib
         clean_pass = smtp_password.replace(" ", "")
@@ -334,18 +345,19 @@ async def diagnostico_smtp():
     auth_exitosa = resend_valido or ("OK" in str(resultado_465)) or ("OK" in str(resultado_587))
 
     diagnostico_msg = (
-        "✅ Despacho vía Resend HTTPS API (Puerto 443) activo y verificado. Los correos se enviarán sin bloqueos de Render."
+        "✅ Despacho vía Resend HTTPS API (Puerto 443) activo y verificado. Tu API Key cuenta con permisos autorizados para envío de correos (Sending Access), garantizando entrega sin bloqueos de Render."
         if resend_valido
         else f"⚠️ Resend API Key detectada pero falló validación: {resend_error}"
         if resend_key
         else "⚠️ Resend no configurado. Intentando SMTP directo (puede fallar por bloqueo de puertos de Render Free)."
     )
 
-    return {
+    respuesta = {
         "despacho_operativo": auth_exitosa,
         "metodo_principal": "Resend HTTPS API (Puerto 443)" if resend_valido else "SMTP Directo",
         "resend_api_key_configurada": bool(resend_key),
         "resend_api_key_valida": resend_valido,
+        "resend_tipo_permiso": resend_tipo_permiso,
         "resend_key_detectada": resend_masked,
         "resend_error": resend_error,
         "smtp_email_detectado": masked_email or "No configurado",
@@ -354,6 +366,12 @@ async def diagnostico_smtp():
         "puerto_587_starttls": resultado_587,
         "diagnostico": diagnostico_msg
     }
+
+    if probar_envio and "@" in probar_envio:
+        resultado_test = await probar_envio_resend(probar_envio.strip().lower())
+        respuesta["prueba_envio_en_tiempo_real"] = resultado_test
+
+    return respuesta
 
 
 @router.get("/mi-enlace")

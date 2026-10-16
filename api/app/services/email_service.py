@@ -103,13 +103,26 @@ async def _send_via_http_api(recipient: str, subject: str, html_content: str) ->
 
     resend_key = (os.getenv("RESEND_API_KEY") or "").strip().strip('"').strip("'")
     if resend_key:
-        from_email = os.getenv("EMAIL_FROM") or "Syncro <onboarding@resend.dev>"
+        configured_from = (os.getenv("EMAIL_FROM") or "").strip().strip('"').strip("'")
+        # Si EMAIL_FROM está vacío o usa dominios públicos que no se pueden verificar en Resend,
+        # usar el remitente oficial de pruebas de Resend: "Syncro <onboarding@resend.dev>"
+        if not configured_from or any(d in configured_from.lower() for d in ["@gmail.", "@yahoo.", "@hotmail.", "@outlook.", "@live."]):
+            from_email = "Syncro <onboarding@resend.dev>"
+        else:
+            from_email = configured_from
+
         payload = {
             "from": from_email,
             "to": [recipient],
             "subject": subject,
             "html": html_content
         }
+
+        smtp_email, _ = get_smtp_credentials()
+        reply_target = smtp_email or (configured_from if "@" in configured_from else None)
+        if reply_target and "@" in reply_target:
+            payload["reply_to"] = reply_target
+
         data = json.dumps(payload).encode("utf-8")
         req = urllib.request.Request(
             "https://api.resend.com/emails",
@@ -125,10 +138,11 @@ async def _send_via_http_api(recipient: str, subject: str, html_content: str) ->
             loop = asyncio.get_event_loop()
             def do_resend():
                 with urllib.request.urlopen(req, timeout=12) as resp:
-                    return resp.status in (200, 201)
-            success = await loop.run_in_executor(None, do_resend)
+                    body = resp.read().decode("utf-8", errors="replace")
+                    return resp.status in (200, 201), body
+            success, body = await loop.run_in_executor(None, do_resend)
             if success:
-                print(f"[EmailService] Correo entregado exitosamente a {recipient} via Resend HTTP API (Puerto 443)")
+                print(f"[EmailService] Correo entregado exitosamente a {recipient} via Resend HTTP API (Puerto 443): {body}")
                 return True
         except urllib.error.HTTPError as e:
             err_body = e.read().decode("utf-8", errors="replace") if e.fp else ""
@@ -174,6 +188,103 @@ async def _send_via_http_api(recipient: str, subject: str, html_content: str) ->
 
     return False
 
+async def probar_envio_resend(recipient: str) -> dict:
+    """
+    Envía un correo de prueba directo mediante Resend HTTPS API (Puerto 443)
+    y retorna un informe exhaustivo con código HTTP y respuesta del proveedor.
+    """
+    import json
+    import urllib.request
+    import urllib.error
+    import asyncio
+
+    resend_key = (os.getenv("RESEND_API_KEY") or "").strip().strip('"').strip("'")
+    if not resend_key:
+        return {
+            "destinatario": recipient,
+            "enviado_con_exito": False,
+            "status_code": None,
+            "mensaje": "Variable de entorno RESEND_API_KEY no encontrada en el servidor."
+        }
+
+    configured_from = (os.getenv("EMAIL_FROM") or "").strip().strip('"').strip("'")
+    if not configured_from or any(d in configured_from.lower() for d in ["@gmail.", "@yahoo.", "@hotmail.", "@outlook.", "@live."]):
+        from_email = "Syncro <onboarding@resend.dev>"
+    else:
+        from_email = configured_from
+
+    smtp_email, _ = get_smtp_credentials()
+
+    payload = {
+        "from": from_email,
+        "to": [recipient],
+        "subject": "Prueba de Envío y Conectividad - Syncro Fitness Platform",
+        "html": f"""
+        <div style="font-family: sans-serif; background-color: #09090b; color: #fff; padding: 25px; border-radius: 12px;">
+            <h2 style="color: #10b981;">✅ Correo de Prueba Exitoso</h2>
+            <p>Este correo confirma que el motor de despacho vía <b>Resend HTTPS API (Puerto 443)</b> está 100% operativo en producción en Render.</p>
+            <p style="color: #a1a1aa; font-size: 13px;">Syncro Fitness Platform &copy; 2026</p>
+        </div>
+        """
+    }
+    reply_target = smtp_email or (configured_from if "@" in configured_from else None)
+    if reply_target and "@" in reply_target:
+        payload["reply_to"] = reply_target
+
+    data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(
+        "https://api.resend.com/emails",
+        data=data,
+        headers={
+            "Authorization": f"Bearer {resend_key}",
+            "Content-Type": "application/json",
+            "User-Agent": "Syncro-API/1.0"
+        },
+        method="POST"
+    )
+
+    try:
+        loop = asyncio.get_event_loop()
+        def do_req():
+            with urllib.request.urlopen(req, timeout=12) as resp:
+                return resp.status, resp.read().decode("utf-8", errors="replace")
+
+        status, body_str = await loop.run_in_executor(None, do_req)
+        parsed = {}
+        try:
+            parsed = json.loads(body_str)
+        except Exception:
+            pass
+
+        return {
+            "destinatario": recipient,
+            "enviado_con_exito": status in (200, 201),
+            "status_code": status,
+            "id_mensaje": parsed.get("id"),
+            "mensaje": "¡Correo de prueba enviado y aceptado por Resend! Revisa tu bandeja de entrada y Spam.",
+            "remitente_utilizado": from_email
+        }
+    except urllib.error.HTTPError as e:
+        raw_err = e.read().decode("utf-8", errors="replace") if e.fp else ""
+        sugerencia = ""
+        if e.code == 403 and "own email address" in raw_err:
+            sugerencia = "Restricción de cuenta gratuita de Resend: Con 'onboarding@resend.dev', Resend solo permite enviar al correo con el que te registraste en Resend. Para enviar a cualquier tutor, debes verificar un dominio propio en resend.com/domains o el alumno puede compartir el Enlace Directo."
+        return {
+            "destinatario": recipient,
+            "enviado_con_exito": False,
+            "status_code": e.code,
+            "error_proveedor": raw_err,
+            "sugerencia": sugerencia,
+            "mensaje": f"Resend rechazó el envío (HTTP {e.code}). {sugerencia}"
+        }
+    except Exception as e:
+        return {
+            "destinatario": recipient,
+            "enviado_con_exito": False,
+            "status_code": None,
+            "mensaje": f"Error de conexión: {str(e)}"
+        }
+
 async def _dispatch_email_multichannel(recipient: str, subject: str, html_content: str, text_content: str = "") -> bool:
     """
     Canal inteligente de despacho:
@@ -204,9 +315,11 @@ async def send_payment_reminder_email(alumno_email: str, alumno_nombre: str, ent
     is_due_today = True -> El pago vence hoy.
     is_due_today = False -> El pago vence en 2 días.
     """
+    resend_key = os.getenv("RESEND_API_KEY")
+    brevo_key = os.getenv("BREVO_API_KEY")
     smtp_email, _ = get_smtp_credentials()
-    if not smtp_email:
-        print("Error: SMTP credentials not set. Cannot send email.")
+    if not resend_key and not brevo_key and not smtp_email:
+        print("[EmailService] Error: Credenciales de correo no configuradas. No se puede enviar recordatorio de pago.")
         return
 
     subject = f"Recordatorio de pago - {entrenador_nombre}" if not is_due_today else f"Tu pago vence HOY - {entrenador_nombre}"
@@ -302,15 +415,12 @@ async def send_payment_reminder_email(alumno_email: str, alumno_nombre: str, ent
     </html>
     """
 
-    smtp_email, _ = get_smtp_credentials()
-    message = EmailMessage()
-    message["From"] = f"Syncro Notificaciones <{smtp_email}>"
-    message["To"] = alumno_email
-    message["Subject"] = subject
-    message.set_content("Por favor habilita HTML para ver este correo.")
-    message.add_alternative(html_content, subtype="html")
-
-    await _send_smtp_robust(message, alumno_email)
+    await _dispatch_email_multichannel(
+        alumno_email,
+        subject,
+        html_content,
+        f"Recordatorio de pago - {entrenador_nombre}. Por favor regularice su cuota."
+    )
 
 
 async def send_parental_consent_request_email(tutor_email: str, alumno_nombre: str, entrenador_nombre: str, token: str) -> bool:
@@ -319,9 +429,11 @@ async def send_parental_consent_request_email(tutor_email: str, alumno_nombre: s
     cargas de peso, métricas y asistencia), personas con acceso autorizado, canales de revocación
     y botón con enlace seguro. Retorna True si se despachó con éxito, False en caso contrario.
     """
+    resend_key = os.getenv("RESEND_API_KEY")
+    brevo_key = os.getenv("BREVO_API_KEY")
     smtp_email, smtp_password = get_smtp_credentials()
-    if not smtp_email or not smtp_password:
-        print(f"[EmailService] Error: Credenciales SMTP incompletas (email='{smtp_email}', pass_len={len(smtp_password)}). No se despacha.")
+    if not resend_key and not brevo_key and (not smtp_email or not smtp_password):
+        print(f"[EmailService] Error: Credenciales de correo no disponibles (Resend/Brevo/SMTP). No se despacha.")
         return False
 
     frontend_url = os.getenv("FRONTEND_URL", "https://syncro-clone.vercel.app").rstrip("/")
@@ -517,9 +629,11 @@ async def send_parental_consent_confirmation_email(tutor_email: str, alumno_emai
     Notificación bidireccional inmediata al confirmarse el consentimiento parental.
     Envía confirmación formal al tutor legal y notificación de desbloqueo al alumno.
     """
+    resend_key = os.getenv("RESEND_API_KEY")
+    brevo_key = os.getenv("BREVO_API_KEY")
     smtp_email, _ = get_smtp_credentials()
-    if not smtp_email:
-        print("Error: SMTP credentials not set. Cannot send confirmation emails.")
+    if not resend_key and not brevo_key and not smtp_email:
+        print("[EmailService] Error: Credenciales de correo no configuradas. No se pueden enviar confirmaciones.")
         return
 
     # 1. Correo formal para el Tutor Legal
