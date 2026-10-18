@@ -774,6 +774,7 @@ async def send_parental_consent_confirmation_email(tutor_email: str, alumno_emai
     resend_key = os.getenv("RESEND_API_KEY")
     brevo_key = os.getenv("BREVO_API_KEY")
     smtp_email, _ = get_smtp_credentials()
+    frontend_url = os.getenv("FRONTEND_URL", "https://syncro-clone.vercel.app").rstrip("/")
     if not relay_url and not resend_key and not brevo_key and not smtp_email:
         print("[EmailService] Error: Credenciales de correo no configuradas. No se pueden enviar confirmaciones.")
         return
@@ -848,7 +849,7 @@ async def send_parental_consent_confirmation_email(tutor_email: str, alumno_emai
                 Tu cuenta ha sido desbloqueada por completo. Ya puedes ingresar a Syncro para ver tus rutinas asignadas, registrar tus pesos y seguir tu evolución deportiva junto a tu entrenador.
             </div>
             <div class="cta">
-                <a href="https://syncro-clone.vercel.app/login" class="btn">Ingresar a Syncro</a>
+                <a href="{frontend_url}/login" class="btn">Ingresar a Syncro</a>
             </div>
             <div class="footer">
                 Syncro Fitness Platform &copy; 2026

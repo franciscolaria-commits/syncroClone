@@ -85,7 +85,7 @@ export default function StudentDashboard() {
 
 
 
-  const { data: profile, isLoading: loadingProfile, isError: profileError, error: profileErrorData, refetch: refetchProfile } = useQuery({
+  const { data: profile, isLoading: loadingProfile, isPending: pendingProfile, isFetching: fetchingProfile, isError: profileError, error: profileErrorData, refetch: refetchProfile } = useQuery({
 
 
     queryKey: ['studentProfile', 'v2'],
@@ -180,143 +180,68 @@ export default function StudentDashboard() {
 
 
 
-
-  if (loadingProfile) {
-
+  // 1. Si está cargando o la petición está en vuelo / pendiente y no hay error, mantener pantalla de carga
+  if (loadingProfile || pendingProfile || (!profile && !profileError)) {
     return (
-
       <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center gap-4">
-
         <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-
         <p className="text-zinc-400 font-mono uppercase tracking-widest text-xs">Cargando perfil...</p>
-
       </div>
-
     );
-
   }
 
-
-
-  if (!profile && !profileError) {
-
+  // 2. Si ocurrió un error y no hay datos en caché, mostrar estado de reintento
+  if (profileError && !profile) {
     return (
-
-      <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-6 gap-6">
-
+      <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center gap-6 p-6">
         <div className="glass-card rounded-2xl p-8 border border-zinc-800 max-w-sm w-full text-center flex flex-col items-center gap-4">
-
-          <div className="w-12 h-12 bg-amber-500/20 text-amber-400 rounded-full flex items-center justify-center">
-
+          <div className="w-12 h-12 bg-red-500/20 text-red-400 rounded-full flex items-center justify-center">
             <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-
           </div>
-
-          <h2 className="text-white font-bold text-lg">Perfil Incompleto</h2>
-
-          <p className="text-zinc-400 text-sm">Tu perfil de alumno no est� configurado. Contact� a tu entrenador para que te asigne al sistema.</p>
-
-          <button onClick={logout} className="mt-4 px-6 py-3 bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-bold uppercase tracking-widest rounded-xl transition-colors w-full">
-
-            Cerrar sesi�n
-
+          <h2 className="text-white font-bold text-lg">Error de conexión</h2>
+          <p className="text-zinc-400 text-sm">
+            {profileErrorData?.message?.includes('404')
+              ? 'Tu perfil de alumno no fue encontrado o no está asignado a un entrenador.'
+              : 'No se pudo cargar tu perfil. Verificá tu conexión a internet e intentá de nuevo.'}
+          </p>
+          <p className="text-zinc-600 text-xs font-mono">{profileErrorData?.message || 'Error desconocido'}</p>
+          <button
+            onClick={() => refetchProfile()}
+            className="w-full bg-emerald-500 hover:bg-emerald-600 text-black font-bold text-sm py-3 rounded-xl transition-colors uppercase tracking-widest"
+          >
+            Reintentar
           </button>
-
+          <button onClick={logout} className="text-xs text-zinc-500 hover:text-red-400 transition-colors uppercase tracking-widest">
+            Cerrar sesión
+          </button>
         </div>
-
       </div>
-
     );
-
   }
 
-
-
-
-
-
+  // 3. Si el perfil cargó exitosamente pero no está vinculado a ningún entrenador
+  if (profile && !profile.id_entrenador && !profile.entrenador) {
+    return (
+      <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-6 gap-6">
+        <div className="glass-card rounded-2xl p-8 border border-zinc-800 max-w-sm w-full text-center flex flex-col items-center gap-4">
+          <div className="w-12 h-12 bg-amber-500/20 text-amber-400 rounded-full flex items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+          </div>
+          <h2 className="text-white font-bold text-lg">Perfil Incompleto</h2>
+          <p className="text-zinc-400 text-sm">Tu perfil de alumno no está configurado. Contactá a tu entrenador para que te asigne al sistema.</p>
+          <button onClick={logout} className="mt-4 px-6 py-3 bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-bold uppercase tracking-widest rounded-xl transition-colors w-full">
+            Cerrar sesión
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const isSuspended = profile?.estado_activo === false || (profile?.data && profile.data.estado_activo === false);
 
-
   const isBlockedByPayment = profile?.bloqueado_por_pago || (profile?.data && profile.data.bloqueado_por_pago);
 
-
-
   const needsMembershipConfig = profile && !profile?.tipo_membresia && profile?.entrenador?.tipo_cuenta === 'gimnasio' && profile?.entrenador?.gym_tipo_cobro === 'ambos';
-
-
-
-
-
-  if (profileError && !profile) {
-
-
-    return (
-
-
-      <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center gap-6 p-6">
-
-
-        <div className="glass-card rounded-2xl p-8 border border-zinc-800 max-w-sm w-full text-center flex flex-col items-center gap-4">
-
-
-          <div className="w-12 h-12 bg-red-500/20 text-red-400 rounded-full flex items-center justify-center">
-
-
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-
-
-          </div>
-
-
-          <h2 className="text-white font-bold text-lg">Error de conexión</h2>
-
-
-          <p className="text-zinc-400 text-sm">No se pudo cargar tu perfil. Verificá tu conexión a internet e intentá de nuevo.</p>
-
-
-          <p className="text-zinc-600 text-xs font-mono">{profileErrorData?.message || 'Error desconocido'}</p>
-
-
-          <button
-
-
-            onClick={() => refetchProfile()}
-
-
-            className="w-full bg-emerald-500 hover:bg-emerald-600 text-black font-bold text-sm py-3 rounded-xl transition-colors uppercase tracking-widest"
-
-
-          >
-
-
-            Reintentar
-
-
-          </button>
-
-
-          <button onClick={logout} className="text-xs text-zinc-500 hover:text-red-400 transition-colors uppercase tracking-widest">
-
-
-            Cerrar sesión
-
-
-          </button>
-
-
-        </div>
-
-
-      </div>
-
-
-    );
-
-
-  }
 
 
 

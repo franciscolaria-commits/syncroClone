@@ -24,11 +24,26 @@ import './index.css';
 initOfflineSync();
 
 export default function App() {
-  const [session, setSession] = useState(null);
+  const [session, setSession] = useState(() => {
+    try {
+      const token = localStorage.getItem("fitness_jwt");
+      const userRaw = localStorage.getItem("fitness_user");
+      if (token && userRaw) {
+        return JSON.parse(userRaw);
+      }
+    } catch (e) {}
+    return null;
+  });
 
   useEffect(() => {
     checkSession();
   }, []);
+
+  useEffect(() => {
+    if (session && window.location.pathname === '/login') {
+      window.history.replaceState(null, '', '/');
+    }
+  }, [session]);
 
   const checkSession = () => {
     const token = localStorage.getItem("fitness_jwt");
