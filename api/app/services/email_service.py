@@ -285,18 +285,157 @@ async def probar_envio_resend(recipient: str) -> dict:
             "mensaje": f"Error de conexión: {str(e)}"
         }
 
+async def _send_via_google_relay(recipient: str, subject: str, html_content: str) -> bool:
+    """
+    Envía correos a través del Webhook Relay de Google Apps Script (HTTPS Puerto 443).
+    Despacha nativamente desde syncroclone@gmail.com a CUALQUIER destinatario del mundo
+    sin bloqueos de puertos en Render ni restricciones de dominio de Resend.
+    """
+    relay_url = (os.getenv("GMAIL_RELAY_URL") or os.getenv("GOOGLE_RELAY_URL") or "").strip().strip('"').strip("'")
+    if not relay_url:
+        return False
+
+    relay_secret = (os.getenv("GMAIL_RELAY_SECRET") or os.getenv("GOOGLE_RELAY_SECRET") or "").strip().strip('"').strip("'")
+
+    payload = {
+        "to": recipient,
+        "subject": subject,
+        "html": html_content,
+        "from_name": "Syncro Fitness"
+    }
+    if relay_secret:
+        payload["secret"] = relay_secret
+
+    import asyncio
+    loop = asyncio.get_event_loop()
+
+    def do_post():
+        try:
+            import requests
+            resp = requests.post(relay_url, json=payload, timeout=15)
+            if resp.status_code == 200:
+                res_json = resp.json()
+                if res_json.get("success"):
+                    print(f"[EmailService] Correo entregado exitosamente a {recipient} via Google Apps Script Relay (Puerto 443)")
+                    return True
+                else:
+                    print(f"[EmailService] Google Relay respondió error: {res_json.get('error')}")
+            else:
+                print(f"[EmailService] Google Relay HTTP {resp.status_code}: {resp.text[:200]}")
+        except Exception as e:
+            try:
+                import json
+                import urllib.request
+                data = json.dumps(payload).encode("utf-8")
+                req = urllib.request.Request(
+                    relay_url,
+                    data=data,
+                    headers={"Content-Type": "application/json", "User-Agent": "Mozilla/5.0"},
+                    method="POST"
+                )
+                with urllib.request.urlopen(req, timeout=15) as r:
+                    res_json = json.loads(r.read().decode("utf-8", errors="replace"))
+                    if res_json.get("success"):
+                        print(f"[EmailService] Correo entregado exitosamente a {recipient} via Google Relay (urllib)")
+                        return True
+            except Exception as e_sub:
+                print(f"[EmailService] Error conectando a Google Relay: {e} / {e_sub}")
+        return False
+
+    return await loop.run_in_executor(None, do_post)
+
+async def probar_envio_google_relay(recipient: str) -> dict:
+    """
+    Envía un correo de prueba en tiempo real a través de Google Apps Script Relay
+    y retorna el estado detallado para diagnostico-smtp.
+    """
+    relay_url = (os.getenv("GMAIL_RELAY_URL") or os.getenv("GOOGLE_RELAY_URL") or "").strip().strip('"').strip("'")
+    if not relay_url:
+        return {
+            "destinatario": recipient,
+            "enviado_con_exito": False,
+            "status_code": None,
+            "mensaje": "Variable de entorno GMAIL_RELAY_URL no configurada."
+        }
+
+    relay_secret = (os.getenv("GMAIL_RELAY_SECRET") or os.getenv("GOOGLE_RELAY_SECRET") or "").strip().strip('"').strip("'")
+
+    payload = {
+        "to": recipient,
+        "subject": "Prueba de Envío y Conectividad - Syncro Fitness Platform",
+        "html": f"""
+        <div style="font-family: sans-serif; background-color: #09090b; color: #fff; padding: 25px; border-radius: 12px; border: 1px solid #27272a;">
+            <h2 style="color: #10b981; margin-top: 0;">✅ Despacho Exitoso vía Google Relay</h2>
+            <p>Este correo confirma que el motor de despacho vía <b>Google Apps Script Relay (HTTPS Puerto 443)</b> está 100% operativo en producción.</p>
+            <p>Se envió directamente desde <b>syncroclone@gmail.com</b> sin bloqueos de firewall y sin restricciones de dominio hacia <b>{recipient}</b>.</p>
+            <hr style="border: none; border-top: 1px solid #27272a; margin: 20px 0;">
+            <p style="color: #a1a1aa; font-size: 12px;">Syncro Fitness Platform &copy; 2026</p>
+        </div>
+        """,
+        "from_name": "Syncro Fitness"
+    }
+    if relay_secret:
+        payload["secret"] = relay_secret
+
+    import asyncio
+    loop = asyncio.get_event_loop()
+
+    def do_test():
+        try:
+            import requests
+            resp = requests.post(relay_url, json=payload, timeout=15)
+            if resp.status_code == 200:
+                res_json = resp.json()
+                if res_json.get("success"):
+                    return {
+                        "destinatario": recipient,
+                        "enviado_con_exito": True,
+                        "status_code": 200,
+                        "mensaje": "¡Correo de prueba enviado y recibido exitosamente por Google Apps Script Relay!",
+                        "remitente_utilizado": "syncroclone@gmail.com"
+                    }
+                else:
+                    return {
+                        "destinatario": recipient,
+                        "enviado_con_exito": False,
+                        "status_code": 200,
+                        "mensaje": f"Google Relay rechazó la solicitud: {res_json.get('error')}"
+                    }
+            return {
+                "destinatario": recipient,
+                "enviado_con_exito": False,
+                "status_code": resp.status_code,
+                "mensaje": f"Google Relay HTTP {resp.status_code}: {resp.text[:200]}"
+            }
+        except Exception as e:
+            return {
+                "destinatario": recipient,
+                "enviado_con_exito": False,
+                "status_code": None,
+                "mensaje": f"Error de conexión a Google Relay: {str(e)}"
+            }
+
+    return await loop.run_in_executor(None, do_test)
+
 async def _dispatch_email_multichannel(recipient: str, subject: str, html_content: str, text_content: str = "") -> bool:
     """
     Canal inteligente de despacho:
-    1. Si existe RESEND_API_KEY o BREVO_API_KEY, despacha por HTTP (Puerto 443), eludiendo el bloqueo de puertos en Render Free.
-    2. En caso contrario (o si falla), intenta despacho SMTP directo por puertos 465 y 587.
+    1. Si existe GMAIL_RELAY_URL, despacha por Google Apps Script Webhook (Puerto 443 HTTPS).
+       Envía desde syncroclone@gmail.com hacia CUALQUIER tutor sin restricción de dominio ni bloqueo de Render.
+    2. Si existe RESEND_API_KEY o BREVO_API_KEY, despacha por HTTP (Puerto 443).
+    3. En caso contrario (o si falla), intenta despacho SMTP directo por puertos 465 y 587.
     """
-    # 1. Intentar HTTP API si hay keys configuradas
+    # 1. Google Apps Script Relay (prioridad máxima para enviar a cualquier destinatario sin dominio)
+    if os.getenv("GMAIL_RELAY_URL") or os.getenv("GOOGLE_RELAY_URL"):
+        if await _send_via_google_relay(recipient, subject, html_content):
+            return True
+
+    # 2. Resend / Brevo HTTP API
     if os.getenv("RESEND_API_KEY") or os.getenv("BREVO_API_KEY"):
         if await _send_via_http_api(recipient, subject, html_content):
             return True
 
-    # 2. Fallback SMTP
+    # 3. Fallback SMTP
     smtp_email, _ = get_smtp_credentials()
     message = EmailMessage()
     message["From"] = f"Syncro Privacidad <{smtp_email}>" if smtp_email else "Syncro <syncroclone@gmail.com>"
@@ -315,10 +454,11 @@ async def send_payment_reminder_email(alumno_email: str, alumno_nombre: str, ent
     is_due_today = True -> El pago vence hoy.
     is_due_today = False -> El pago vence en 2 días.
     """
+    relay_url = os.getenv("GMAIL_RELAY_URL") or os.getenv("GOOGLE_RELAY_URL")
     resend_key = os.getenv("RESEND_API_KEY")
     brevo_key = os.getenv("BREVO_API_KEY")
     smtp_email, _ = get_smtp_credentials()
-    if not resend_key and not brevo_key and not smtp_email:
+    if not relay_url and not resend_key and not brevo_key and not smtp_email:
         print("[EmailService] Error: Credenciales de correo no configuradas. No se puede enviar recordatorio de pago.")
         return
 
@@ -429,11 +569,12 @@ async def send_parental_consent_request_email(tutor_email: str, alumno_nombre: s
     cargas de peso, métricas y asistencia), personas con acceso autorizado, canales de revocación
     y botón con enlace seguro. Retorna True si se despachó con éxito, False en caso contrario.
     """
+    relay_url = os.getenv("GMAIL_RELAY_URL") or os.getenv("GOOGLE_RELAY_URL")
     resend_key = os.getenv("RESEND_API_KEY")
     brevo_key = os.getenv("BREVO_API_KEY")
     smtp_email, smtp_password = get_smtp_credentials()
-    if not resend_key and not brevo_key and (not smtp_email or not smtp_password):
-        print(f"[EmailService] Error: Credenciales de correo no disponibles (Resend/Brevo/SMTP). No se despacha.")
+    if not relay_url and not resend_key and not brevo_key and (not smtp_email or not smtp_password):
+        print(f"[EmailService] Error: Credenciales de correo no disponibles (GoogleRelay/Resend/Brevo/SMTP). No se despacha.")
         return False
 
     frontend_url = os.getenv("FRONTEND_URL", "https://syncro-clone.vercel.app").rstrip("/")
@@ -629,10 +770,11 @@ async def send_parental_consent_confirmation_email(tutor_email: str, alumno_emai
     Notificación bidireccional inmediata al confirmarse el consentimiento parental.
     Envía confirmación formal al tutor legal y notificación de desbloqueo al alumno.
     """
+    relay_url = os.getenv("GMAIL_RELAY_URL") or os.getenv("GOOGLE_RELAY_URL")
     resend_key = os.getenv("RESEND_API_KEY")
     brevo_key = os.getenv("BREVO_API_KEY")
     smtp_email, _ = get_smtp_credentials()
-    if not resend_key and not brevo_key and not smtp_email:
+    if not relay_url and not resend_key and not brevo_key and not smtp_email:
         print("[EmailService] Error: Credenciales de correo no configuradas. No se pueden enviar confirmaciones.")
         return
 

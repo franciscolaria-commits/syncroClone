@@ -266,17 +266,38 @@ async def reenviar_solicitud(
 
 @router.get("/diagnostico-smtp")
 async def diagnostico_smtp(
-    probar_envio: Optional[str] = Query(None, description="Email de prueba para verificar despacho en tiempo real vía Resend")
+    probar_envio: Optional[str] = Query(None, description="Email de prueba para verificar despacho en tiempo real (ej: ?probar_envio=destinatario@gmail.com)")
 ):
     """
-    Verifica el estado de configuración de despacho de correos (Resend HTTPS API / Brevo / SMTP).
-    Valida Resend en milisegundos sin timeouts. Permite enviar un correo de prueba pasando ?probar_envio=tu_email@gmail.com
+    Verifica el estado de configuración de despacho de correos (Google Relay / Resend / SMTP).
+    Valida conexiones en milisegundos sin timeouts. Permite enviar un correo de prueba pasando ?probar_envio=tu_email@gmail.com
     """
     import os
     import json
     import urllib.request
     import urllib.error
 
+    # 1. Chequeo de Google Apps Script Relay
+    relay_url = (os.getenv("GMAIL_RELAY_URL") or os.getenv("GOOGLE_RELAY_URL") or "").strip().strip('"').strip("'")
+    relay_valido = False
+    relay_status = "No configurado"
+    relay_masked = ""
+
+    if relay_url:
+        relay_masked = f"{relay_url[:35]}...{relay_url[-10:]}" if len(relay_url) > 45 else relay_url
+        try:
+            req_relay = urllib.request.Request(
+                relay_url,
+                headers={"User-Agent": "Mozilla/5.0"}
+            )
+            with urllib.request.urlopen(req_relay, timeout=5) as resp:
+                if resp.status == 200:
+                    relay_valido = True
+                    relay_status = "Online (Conexión exitosa a Google Apps Script)"
+        except Exception as e:
+            relay_status = f"Error: {str(e)}"
+
+    # 2. Chequeo de Resend
     resend_key = (os.getenv("RESEND_API_KEY") or "").strip().strip('"').strip("'")
     resend_valido = False
     resend_error = None
@@ -296,8 +317,6 @@ async def diagnostico_smtp(
                     resend_tipo_permiso = "Full Access (Acceso Total a Resend)"
         except urllib.error.HTTPError as e:
             raw_err = e.read().decode('utf-8', errors='replace')
-            # Resend responde HTTP 401 con 'restricted_api_key' cuando una API Key es auténtica y válida pero
-            # tiene permiso 'Sending access' (sólo envío de correos, que es el permiso estándar recomendado por seguridad).
             if e.code == 401 and ("restricted to only send emails" in raw_err or "restricted_api_key" in raw_err):
                 resend_valido = True
                 resend_tipo_permiso = "Sending Access (Permiso exclusivo de envío de correos - Válido y Operativo)"
@@ -307,7 +326,8 @@ async def diagnostico_smtp(
         except Exception as e:
             resend_error = str(e)
 
-    from app.services.email_service import get_smtp_credentials, probar_envio_resend
+    # 3. Chequeo SMTP tradicional
+    from app.services.email_service import get_smtp_credentials, probar_envio_resend, probar_envio_google_relay
     smtp_email, smtp_password = get_smtp_credentials()
 
     masked_email = ""
@@ -317,11 +337,10 @@ async def diagnostico_smtp(
 
     pass_len = len(smtp_password)
 
-    resultado_465 = "Omitido (Resend HTTPS activo en Puerto 443)" if resend_valido else "No probado"
-    resultado_587 = "Omitido (Resend HTTPS activo en Puerto 443)" if resend_valido else "No probado"
+    resultado_465 = "Omitido (Canal HTTPS activo en Puerto 443)" if (relay_valido or resend_valido) else "No probado"
+    resultado_587 = "Omitido (Canal HTTPS activo en Puerto 443)" if (relay_valido or resend_valido) else "No probado"
 
-    # Solo probar SMTP si Resend no está validado, con timeout muy bajo (2.5s) para no demorar
-    if not resend_valido and smtp_email and smtp_password:
+    if not relay_valido and not resend_valido and smtp_email and smtp_password:
         import aiosmtplib
         clean_pass = smtp_password.replace(" ", "")
         try:
@@ -342,24 +361,32 @@ async def diagnostico_smtp(
         except Exception as e:
             resultado_587 = f"Fallo: {type(e).__name__} - {str(e)}"
 
-    auth_exitosa = resend_valido or ("OK" in str(resultado_465)) or ("OK" in str(resultado_587))
+    auth_exitosa = relay_valido or resend_valido or ("OK" in str(resultado_465)) or ("OK" in str(resultado_587))
 
-    diagnostico_msg = (
-        "✅ Despacho vía Resend HTTPS API (Puerto 443) activo y verificado. Tu API Key cuenta con permisos autorizados para envío de correos (Sending Access), garantizando entrega sin bloqueos de Render."
-        if resend_valido
-        else f"⚠️ Resend API Key detectada pero falló validación: {resend_error}"
-        if resend_key
-        else "⚠️ Resend no configurado. Intentando SMTP directo (puede fallar por bloqueo de puertos de Render Free)."
-    )
+    if relay_valido:
+        metodo_principal = "Google Apps Script Relay (HTTPS Puerto 443 - Envía a CUALQUIER tutor sin restricciones)"
+        diagnostico_msg = "✅ Despacho vía Google Apps Script Relay activo y verificado. Los correos se envían directamente desde syncroclone@gmail.com a CUALQUIER tutor sin restricciones de dominio ni bloqueos de Render."
+    elif resend_valido:
+        metodo_principal = "Resend HTTPS API (Puerto 443)"
+        diagnostico_msg = "✅ Despacho vía Resend HTTPS API activo. En capa gratuita entrega a tu cuenta de Resend (para otros tutores, configura GMAIL_RELAY_URL o verifica un dominio)."
+    elif auth_exitosa:
+        metodo_principal = "SMTP Directo"
+        diagnostico_msg = "✅ Conexión SMTP autenticada."
+    else:
+        metodo_principal = "No operativo"
+        diagnostico_msg = "⚠️ No hay un canal de despacho operativo configurado."
 
     respuesta = {
         "despacho_operativo": auth_exitosa,
-        "metodo_principal": "Resend HTTPS API (Puerto 443)" if resend_valido else "SMTP Directo",
+        "metodo_principal": metodo_principal,
+        "google_relay_configurado": bool(relay_url),
+        "google_relay_valido": relay_valido,
+        "google_relay_estado": relay_status,
+        "google_relay_url": relay_masked or "No configurado",
         "resend_api_key_configurada": bool(resend_key),
         "resend_api_key_valida": resend_valido,
         "resend_tipo_permiso": resend_tipo_permiso,
-        "resend_key_detectada": resend_masked,
-        "resend_error": resend_error,
+        "resend_key_detectada": resend_masked or "No configurado",
         "smtp_email_detectado": masked_email or "No configurado",
         "smtp_password_configurado": bool(pass_len > 0),
         "puerto_465_ssl": resultado_465,
@@ -368,7 +395,11 @@ async def diagnostico_smtp(
     }
 
     if probar_envio and "@" in probar_envio:
-        resultado_test = await probar_envio_resend(probar_envio.strip().lower())
+        clean_target = probar_envio.strip().lower()
+        if relay_url:
+            resultado_test = await probar_envio_google_relay(clean_target)
+        else:
+            resultado_test = await probar_envio_resend(clean_target)
         respuesta["prueba_envio_en_tiempo_real"] = resultado_test
 
     return respuesta
