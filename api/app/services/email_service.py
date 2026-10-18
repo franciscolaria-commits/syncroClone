@@ -806,7 +806,7 @@ async def send_parental_consent_request_email(tutor_email: str, alumno_nombre: s
                 <table role="presentation" class="item-table" cellpadding="0" cellspacing="0" border="0">
                     <tr>
                         <td class="item-icon">✉️</td>
-                        <td class="item-text"><strong>Canal de revocación:</strong> Puede revocar este consentimiento o solicitar la eliminación total de datos en cualquier momento escribiendo a <a href="mailto:soporte@syncro.app" style="color: #34d399; text-decoration: underline;">soporte@syncro.app</a>.</td>
+                        <td class="item-text"><strong>Canal de revocación:</strong> Puede revocar este consentimiento o solicitar la eliminación total de datos en cualquier momento escribiendo a <a href="mailto:syncroclone@gmail.com" style="color: #34d399; text-decoration: underline;">syncroclone@gmail.com</a>.</td>
                     </tr>
                 </table>
             </div>
@@ -884,7 +884,7 @@ async def send_parental_consent_confirmation_email(tutor_email: str, alumno_emai
             <div class="highlight-box">
                 ✔️ <b>Estado:</b> Cuenta Habilitada e Inmediatamente Activa.<br>
                 🛡️ <b>Auditoría:</b> Se ha registrado de forma inmutable la marca temporal, dirección IP y aceptación de términos bajo fe de juramento.<br>
-                📩 <b>Derechos ARCO:</b> Recuerde que puede solicitar la revocación o baja de datos en cualquier momento escribiendo a <b>soporte@syncro.app</b>.
+                📩 <b>Derechos ARCO:</b> Recuerde que puede solicitar la revocación o baja de datos en cualquier momento escribiendo a <b>syncroclone@gmail.com</b>.
             </div>
             <div class="footer">
                 Syncro Fitness Platform &copy; 2026 • Protección de Datos Personales

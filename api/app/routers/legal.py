@@ -119,7 +119,7 @@ def obtener_politicas_info():
     return {
         "version": "1.0-2026-10",
         "edad_minima_sin_tutor": 18,
-        "contacto_soporte_legal": "soporte@syncro.app",
+        "contacto_soporte_legal": "syncroclone@gmail.com",
         "resumen_privacidad": {
             "email_visible_entrenador": True,
             "telefono_visible_entrenador": True,

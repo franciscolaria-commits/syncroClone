@@ -436,7 +436,7 @@ def obtener_mi_enlace(
         new_token = secrets.token_urlsafe(32)
         consentimiento = ConsentimientoMenor(
             id_alumno=alumno.id_usuario,
-            email_tutor=alumno.email_tutor or "tutor@syncro.app",
+            email_tutor=alumno.email_tutor or "syncroclone@gmail.com",
             token_autorizacion=new_token,
             fecha_solicitud=datetime.utcnow(),
             fecha_expiracion=datetime.utcnow() + timedelta(days=30),

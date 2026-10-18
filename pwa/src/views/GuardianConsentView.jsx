@@ -292,7 +292,7 @@ export default function GuardianConsentView() {
                     className="mt-1 h-4 w-4 rounded border-zinc-700 text-emerald-600 focus:ring-emerald-500 accent-emerald-500 cursor-pointer"
                   />
                   <span className="text-xs text-zinc-300 leading-relaxed select-none">
-                    Autorizo expresamente el <b>tratamiento de sus datos deportivos y seguimiento físico</b> en la plataforma Syncro. Comprendo que puedo revocar este permiso en cualquier momento escribiendo a <span className="text-emerald-400">soporte@syncro.app</span>.
+                    Autorizo expresamente el <b>tratamiento de sus datos deportivos y seguimiento físico</b> en la plataforma Syncro. Comprendo que puedo revocar este permiso en cualquier momento escribiendo a <a href="mailto:syncroclone@gmail.com" className="text-emerald-400 hover:underline">syncroclone@gmail.com</a>.
                   </span>
                 </label>
               </div>
