@@ -587,41 +587,47 @@ async def send_parental_consent_request_email(tutor_email: str, alumno_nombre: s
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="color-scheme" content="dark">
+        <meta name="supported-color-schemes" content="dark">
         <style>
             body {{
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
                 background-color: #09090b;
                 color: #e4e4e7;
                 margin: 0;
-                padding: 30px 15px;
+                padding: 16px 8px;
+                -webkit-text-size-adjust: 100%;
+                -ms-text-size-adjust: 100%;
             }}
             .container {{
-                max-width: 600px;
+                max-width: 580px;
+                width: 100%;
                 margin: 0 auto;
                 background-color: #18181b;
                 border: 1px solid #27272a;
-                border-radius: 18px;
-                padding: 35px 30px;
+                border-radius: 16px;
+                padding: 28px 20px;
                 box-shadow: 0 15px 35px rgba(0,0,0,0.6);
+                box-sizing: border-box;
             }}
             .logo {{
-                font-size: 26px;
+                font-size: 24px;
                 font-weight: 900;
                 color: #10b981;
                 text-align: center;
                 letter-spacing: -0.5px;
-                margin-bottom: 8px;
+                margin-bottom: 6px;
             }}
             .badge-header {{
                 text-align: center;
-                margin-bottom: 25px;
+                margin-bottom: 20px;
             }}
             .badge {{
                 display: inline-block;
                 background-color: rgba(16, 185, 129, 0.15);
                 color: #34d399;
                 border: 1px solid rgba(16, 185, 129, 0.3);
-                padding: 4px 14px;
+                padding: 4px 12px;
                 border-radius: 9999px;
                 font-size: 11px;
                 font-weight: 700;
@@ -629,83 +635,121 @@ async def send_parental_consent_request_email(tutor_email: str, alumno_nombre: s
                 text-transform: uppercase;
             }}
             .title {{
-                font-size: 21px;
+                font-size: 20px;
                 font-weight: 800;
                 color: #ffffff;
-                margin-bottom: 15px;
+                margin-bottom: 14px;
                 text-align: center;
-                line-height: 1.3;
+                line-height: 1.35;
             }}
             .lead {{
-                font-size: 15px;
+                font-size: 14px;
                 line-height: 1.6;
                 color: #d4d4d8;
-                margin-bottom: 25px;
+                margin-bottom: 20px;
             }}
             .card {{
                 background-color: #27272a;
                 border: 1px solid #3f3f46;
                 border-radius: 12px;
-                padding: 20px;
-                margin-bottom: 25px;
+                padding: 16px 14px;
+                margin-bottom: 18px;
+                box-sizing: border-box;
             }}
             .card-title {{
-                font-size: 13px;
+                font-size: 12px;
                 font-weight: 700;
                 color: #34d399;
                 text-transform: uppercase;
                 letter-spacing: 0.5px;
                 margin-bottom: 12px;
             }}
-            .item {{
-                display: flex;
+            .item-table {{
+                width: 100%;
+                border-collapse: collapse;
                 margin-bottom: 10px;
-                font-size: 14px;
-                line-height: 1.5;
-                color: #a1a1aa;
             }}
-            .item b {{
+            .item-table:last-child {{
+                margin-bottom: 0;
+            }}
+            .item-icon {{
+                width: 26px;
+                min-width: 26px;
+                vertical-align: top;
+                font-size: 16px;
+                line-height: 1.5;
+                padding: 0 8px 0 0;
+            }}
+            .item-text {{
+                vertical-align: top;
+                font-size: 13px;
+                line-height: 1.55;
+                color: #a1a1aa;
+                padding: 0;
+            }}
+            .item-text strong {{
                 color: #f4f4f5;
+                font-weight: 700;
             }}
             .cta-container {{
                 text-align: center;
-                margin: 35px 0 25px 0;
+                margin: 28px 0 20px 0;
             }}
             .btn {{
                 display: inline-block;
                 background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+                background-color: #10b981;
                 color: #ffffff !important;
                 text-decoration: none;
                 font-weight: 800;
                 font-size: 15px;
-                padding: 16px 36px;
+                padding: 15px 28px;
                 border-radius: 12px;
                 box-shadow: 0 10px 20px rgba(16, 185, 129, 0.3);
+                box-sizing: border-box;
+                max-width: 100%;
             }}
             .link-fallback {{
                 font-size: 12px;
                 color: #71717a;
                 word-break: break-all;
+                overflow-wrap: break-word;
                 text-align: center;
-                margin-top: 15px;
+                margin-top: 14px;
+                line-height: 1.45;
             }}
             .link-fallback a {{
                 color: #34d399;
-                text-decoration: none;
+                text-decoration: underline;
+                word-break: break-all;
             }}
             .legal-notice {{
-                margin-top: 30px;
-                padding-top: 20px;
+                margin-top: 24px;
+                padding-top: 16px;
                 border-top: 1px solid #27272a;
                 font-size: 12px;
-                line-height: 1.6;
+                line-height: 1.55;
                 color: #71717a;
             }}
             .footer {{
                 text-align: center;
                 font-size: 11px;
                 color: #52525b;
-                margin-top: 25px;
+                margin-top: 20px;
+            }}
+            @media only screen and (max-width: 480px) {{
+                .container {{
+                    padding: 20px 14px !important;
+                    border-radius: 12px !important;
+                }}
+                .title {{
+                    font-size: 18px !important;
+                }}
+                .btn {{
+                    width: 100% !important;
+                    padding: 14px 16px !important;
+                    font-size: 14px !important;
+                }}
             }}
         </style>
     </head>
@@ -725,16 +769,46 @@ async def send_parental_consent_request_email(tutor_email: str, alumno_nombre: s
 
             <div class="card">
                 <div class="card-title">Fines del Tratamiento de Datos</div>
-                <div class="item">🏋️ &nbsp;<b>Planificación deportiva:</b> Diseño y asignación de rutinas de fuerza y acondicionamiento.</div>
-                <div class="item">📊 &nbsp;<b>Cargas y marcas:</b> Registro de peso corporal, repeticiones y evolución de rendimiento.</div>
-                <div class="item">📅 &nbsp;<b>Asistencia:</b> Control de presencia y seguridad en sesiones presenciales.</div>
+                <table role="presentation" class="item-table" cellpadding="0" cellspacing="0" border="0">
+                    <tr>
+                        <td class="item-icon">🏋️</td>
+                        <td class="item-text"><strong>Planificación deportiva:</strong> Diseño y asignación de rutinas de fuerza y acondicionamiento.</td>
+                    </tr>
+                </table>
+                <table role="presentation" class="item-table" cellpadding="0" cellspacing="0" border="0">
+                    <tr>
+                        <td class="item-icon">📊</td>
+                        <td class="item-text"><strong>Cargas y marcas:</strong> Registro de peso corporal, repeticiones y evolución de rendimiento.</td>
+                    </tr>
+                </table>
+                <table role="presentation" class="item-table" cellpadding="0" cellspacing="0" border="0">
+                    <tr>
+                        <td class="item-icon">📅</td>
+                        <td class="item-text"><strong>Asistencia:</strong> Control de presencia y seguridad en sesiones presenciales.</td>
+                    </tr>
+                </table>
             </div>
 
             <div class="card">
                 <div class="card-title">Privacidad y Seguridad Garantizada</div>
-                <div class="item">🔒 &nbsp;<b>Acceso restringido:</b> Únicamente el alumno y su entrenador acreditado ({entrenador_nombre}) acceden a las métricas deportivas.</div>
-                <div class="item">🛡️ &nbsp;<b>Minimización de datos:</b> Conforme a nuestros estándares, <b>no solicitamos DNI</b> ni del alumno ni del tutor legal.</div>
-                <div class="item">✉️ &nbsp;<b>Canal de revocación:</b> Puede revocar este consentimiento o solicitar la eliminación total de datos en cualquier momento escribiendo a <a href="mailto:soporte@syncro.app" style="color: #34d399;">soporte@syncro.app</a>.</div>
+                <table role="presentation" class="item-table" cellpadding="0" cellspacing="0" border="0">
+                    <tr>
+                        <td class="item-icon">🔒</td>
+                        <td class="item-text"><strong>Acceso restringido:</strong> Únicamente el alumno y su entrenador acreditado ({entrenador_nombre}) acceden a las métricas deportivas.</td>
+                    </tr>
+                </table>
+                <table role="presentation" class="item-table" cellpadding="0" cellspacing="0" border="0">
+                    <tr>
+                        <td class="item-icon">🛡️</td>
+                        <td class="item-text"><strong>Minimización de datos:</strong> Conforme a nuestros estándares, <strong>no solicitamos DNI</strong> ni del alumno ni del tutor legal.</td>
+                    </tr>
+                </table>
+                <table role="presentation" class="item-table" cellpadding="0" cellspacing="0" border="0">
+                    <tr>
+                        <td class="item-icon">✉️</td>
+                        <td class="item-text"><strong>Canal de revocación:</strong> Puede revocar este consentimiento o solicitar la eliminación total de datos en cualquier momento escribiendo a <a href="mailto:soporte@syncro.app" style="color: #34d399; text-decoration: underline;">soporte@syncro.app</a>.</td>
+                    </tr>
+                </table>
             </div>
 
             <div class="cta-container">
