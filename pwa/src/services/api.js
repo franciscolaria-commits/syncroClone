@@ -60,11 +60,15 @@ async function request(endpoint, options = {}) {
     if (response.status === 403) {
       const errorData = await response.clone().json().catch(() => ({}));
       const detail = errorData.detail || "";
-      if (detail.includes("Pago") || detail.includes("temporalmente") || detail.includes("suspendido") || detail.includes("suspendida")) {
+      if (
+        (detail.includes("Pago") || detail.includes("temporalmente") || detail.includes("suspendido") || detail.includes("suspendida") || detail.includes("cancelada") || detail.includes("pausada"))
+        && !endpoint.includes('/subscription/reactivate')
+      ) {
         console.warn("[API] Bloqueo o suspensión detectada.");
-        // Guardar el mensaje para que la vista de bloqueo lo lea
         sessionStorage.setItem("fitness_blocked_reason", detail);
-        window.location.href = "/blocked";
+        if (window.location.pathname !== '/blocked') {
+          window.location.href = "/blocked";
+        }
         throw new Error(detail);
       }
     }

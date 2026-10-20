@@ -20,7 +20,7 @@ def get_superadmin(current_user: models.Usuario = Depends(get_current_user)):
         )
     return current_user
 
-from datetime import datetime
+from datetime import datetime, timedelta
 import uuid
 
 @router.get("/coaches", response_model=List[schemas.CoachAdminOut])
@@ -62,6 +62,10 @@ def get_all_coaches(
             models.PagoEntrenador.anio_mes == current_anio_mes
         ).first()
         
+        now = datetime.utcnow()
+        en_prorroga = bool(e.suscripcion_cancelada and e.fecha_fin_prorroga and e.fecha_fin_prorroga > now)
+        dias_restantes = max(0, (e.fecha_fin_prorroga - now).days + 1) if en_prorroga else 0
+
         result.append({
             "id_usuario": e.id_usuario,
             "nombre": e.nombre,
@@ -76,7 +80,13 @@ def get_all_coaches(
             "fecha_fin_prueba": e.fecha_fin_prueba,
             "total_alumnos": total_alumnos,
             "deuda_estimada_mes": deuda,
-            "pago_mes_registrado": pago_mes is not None
+            "pago_mes_registrado": pago_mes is not None,
+            "suscripcion_cancelada": e.suscripcion_cancelada,
+            "fecha_cancelacion": e.fecha_cancelacion,
+            "prorroga_dias": e.prorroga_dias,
+            "fecha_fin_prorroga": e.fecha_fin_prorroga,
+            "en_prorroga_activa": en_prorroga,
+            "dias_prorroga_restantes": dias_restantes
         })
     return result
 
@@ -110,6 +120,14 @@ def update_coach_financial(
         entrenador.en_periodo_prueba = update_data.en_periodo_prueba
     if update_data.fecha_fin_prueba is not None:
         entrenador.fecha_fin_prueba = update_data.fecha_fin_prueba
+    if update_data.suscripcion_cancelada is not None:
+        entrenador.suscripcion_cancelada = update_data.suscripcion_cancelada
+    if update_data.fecha_cancelacion is not None:
+        entrenador.fecha_cancelacion = update_data.fecha_cancelacion
+    if update_data.prorroga_dias is not None:
+        entrenador.prorroga_dias = update_data.prorroga_dias
+    if update_data.fecha_fin_prorroga is not None:
+        entrenador.fecha_fin_prorroga = update_data.fecha_fin_prorroga
         
     db.commit()
     db.refresh(entrenador)
@@ -152,7 +170,13 @@ def update_coach_financial(
         "fecha_fin_prueba": entrenador.fecha_fin_prueba,
         "total_alumnos": total_alumnos,
         "deuda_estimada_mes": deuda,
-        "pago_mes_registrado": pago_mes is not None
+        "pago_mes_registrado": pago_mes is not None,
+        "suscripcion_cancelada": entrenador.suscripcion_cancelada,
+        "fecha_cancelacion": entrenador.fecha_cancelacion,
+        "prorroga_dias": entrenador.prorroga_dias,
+        "fecha_fin_prorroga": entrenador.fecha_fin_prorroga,
+        "en_prorroga_activa": bool(entrenador.suscripcion_cancelada and entrenador.fecha_fin_prorroga and entrenador.fecha_fin_prorroga > datetime.utcnow()),
+        "dias_prorroga_restantes": max(0, (entrenador.fecha_fin_prorroga - datetime.utcnow()).days + 1) if (entrenador.suscripcion_cancelada and entrenador.fecha_fin_prorroga and entrenador.fecha_fin_prorroga > datetime.utcnow()) else 0
     }
 
 @router.delete("/coaches/{coach_id}")
@@ -262,4 +286,121 @@ def get_finances(
         },
         "chart_data": historial
     }
+
+
+@router.post("/coaches/{coach_id}/grant-grace-period", response_model=schemas.CoachAdminOut)
+def grant_coach_grace_period(
+    coach_id: str,
+    payload: schemas.GrantGracePeriodRequest,
+    db: Session = Depends(get_db),
+    admin: models.Usuario = Depends(get_superadmin)
+):
+    """
+    Otorga una prórroga de cortesía en días a un entrenador con suscripción cancelada.
+    Durante ese período, el entrenador y sus alumnos quedan temporalmente habilitados.
+    """
+    entrenador = db.query(models.Entrenador).filter(models.Entrenador.id_usuario == coach_id).first()
+    if not entrenador:
+        raise HTTPException(status_code=404, detail="Entrenador no encontrado")
+
+    dias = max(1, payload.dias)
+    now = datetime.utcnow()
+    entrenador.prorroga_dias = dias
+    entrenador.fecha_fin_prorroga = now + timedelta(days=dias)
+    entrenador.suscripcion_cancelada = True
+
+    db.commit()
+    db.refresh(entrenador)
+
+    current_anio_mes = now.strftime("%Y-%m")
+    usuario = db.query(models.Usuario).filter(models.Usuario.id_usuario == entrenador.id_usuario).first()
+    total_alumnos = db.query(func.count(models.Alumno.id_usuario)).filter(
+        models.Alumno.id_entrenador == entrenador.id_usuario,
+        models.Alumno.estado_activo == True
+    ).scalar()
+
+    pago_mes = db.query(models.PagoEntrenador).filter(
+        models.PagoEntrenador.id_entrenador == entrenador.id_usuario,
+        models.PagoEntrenador.anio_mes == current_anio_mes
+    ).first()
+
+    return {
+        "id_usuario": entrenador.id_usuario,
+        "nombre": entrenador.nombre,
+        "email": usuario.email if usuario else "Desconocido",
+        "limite_alumnos": entrenador.limite_alumnos,
+        "estado_financiero": entrenador.estado_financiero,
+        "estado_activo": entrenador.estado_activo,
+        "modelo_pago": entrenador.modelo_pago,
+        "monto_fijo": entrenador.monto_fijo,
+        "fecha_vencimiento": entrenador.fecha_vencimiento,
+        "en_periodo_prueba": entrenador.en_periodo_prueba,
+        "fecha_fin_prueba": entrenador.fecha_fin_prueba,
+        "total_alumnos": total_alumnos,
+        "deuda_estimada_mes": 0.0,
+        "pago_mes_registrado": pago_mes is not None,
+        "suscripcion_cancelada": entrenador.suscripcion_cancelada,
+        "fecha_cancelacion": entrenador.fecha_cancelacion,
+        "prorroga_dias": entrenador.prorroga_dias,
+        "fecha_fin_prorroga": entrenador.fecha_fin_prorroga,
+        "en_prorroga_activa": True,
+        "dias_prorroga_restantes": dias
+    }
+
+
+@router.post("/coaches/{coach_id}/revoke-grace-period", response_model=schemas.CoachAdminOut)
+def revoke_coach_grace_period(
+    coach_id: str,
+    db: Session = Depends(get_db),
+    admin: models.Usuario = Depends(get_superadmin)
+):
+    """
+    Revoca la prórroga de cortesía asignada a un entrenador, volviendo a bloquearlo de inmediato.
+    """
+    entrenador = db.query(models.Entrenador).filter(models.Entrenador.id_usuario == coach_id).first()
+    if not entrenador:
+        raise HTTPException(status_code=404, detail="Entrenador no encontrado")
+
+    entrenador.fecha_fin_prorroga = None
+    entrenador.prorroga_dias = 0
+
+    db.commit()
+    db.refresh(entrenador)
+
+    now = datetime.utcnow()
+    current_anio_mes = now.strftime("%Y-%m")
+    usuario = db.query(models.Usuario).filter(models.Usuario.id_usuario == entrenador.id_usuario).first()
+    total_alumnos = db.query(func.count(models.Alumno.id_usuario)).filter(
+        models.Alumno.id_entrenador == entrenador.id_usuario,
+        models.Alumno.estado_activo == True
+    ).scalar()
+
+    pago_mes = db.query(models.PagoEntrenador).filter(
+        models.PagoEntrenador.id_entrenador == entrenador.id_usuario,
+        models.PagoEntrenador.anio_mes == current_anio_mes
+    ).first()
+
+    return {
+        "id_usuario": entrenador.id_usuario,
+        "nombre": entrenador.nombre,
+        "email": usuario.email if usuario else "Desconocido",
+        "limite_alumnos": entrenador.limite_alumnos,
+        "estado_financiero": entrenador.estado_financiero,
+        "estado_activo": entrenador.estado_activo,
+        "modelo_pago": entrenador.modelo_pago,
+        "monto_fijo": entrenador.monto_fijo,
+        "fecha_vencimiento": entrenador.fecha_vencimiento,
+        "en_periodo_prueba": entrenador.en_periodo_prueba,
+        "fecha_fin_prueba": entrenador.fecha_fin_prueba,
+        "total_alumnos": total_alumnos,
+        "deuda_estimada_mes": 0.0,
+        "pago_mes_registrado": pago_mes is not None,
+        "suscripcion_cancelada": entrenador.suscripcion_cancelada,
+        "fecha_cancelacion": entrenador.fecha_cancelacion,
+        "prorroga_dias": 0,
+        "fecha_fin_prorroga": None,
+        "en_prorroga_activa": False,
+        "dias_prorroga_restantes": 0
+    }
+
 

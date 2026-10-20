@@ -86,24 +86,69 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     if usuario is None:
         raise credentials_exception
         
-    # Validaciones financieras de acceso B2B
+    now = datetime.utcnow()
+    # Validaciones financieras de acceso B2B y cancelación de suscripción
     if usuario.rol == "entrenador":
         entrenador = db.query(Entrenador).filter(Entrenador.id_usuario == usuario.id_usuario).first()
-        if entrenador and entrenador.estado_financiero == "suspendido":
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Pago requerido"
-            )
+        if entrenador:
+            if entrenador.suscripcion_cancelada:
+                tiene_prorroga = bool(entrenador.fecha_fin_prorroga and entrenador.fecha_fin_prorroga > now)
+                if not tiene_prorroga:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Suscripción de entrenador cancelada"
+                    )
+            if entrenador.estado_financiero == "suspendido":
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Pago requerido"
+                )
     elif usuario.rol == "alumno":
         alumno = db.query(Alumno).filter(Alumno.id_usuario == usuario.id_usuario).first()
         if alumno:
-            # Quitamos el bloqueo global de estado_activo para que el frontend pueda obtener el perfil
-            # y renderizar su propia pantalla de Acceso Suspendido.
             entrenador_asignado = db.query(Entrenador).filter(Entrenador.id_usuario == alumno.id_entrenador).first()
-            if entrenador_asignado and entrenador_asignado.estado_financiero == "suspendido":
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Servicio temporalmente suspendido"
-                )
+            if entrenador_asignado:
+                if entrenador_asignado.suscripcion_cancelada:
+                    tiene_prorroga = bool(entrenador_asignado.fecha_fin_prorroga and entrenador_asignado.fecha_fin_prorroga > now)
+                    if not tiene_prorroga:
+                        raise HTTPException(
+                            status_code=status.HTTP_403_FORBIDDEN,
+                            detail="Servicio de entrenador suspendido por suscripción pausada"
+                        )
+                if entrenador_asignado.estado_financiero == "suspendido":
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Servicio temporalmente suspendido"
+                    )
                 
     return usuario
+
+
+def get_current_coach_allow_cancelled(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+) -> Usuario:
+    """
+    Retorna el usuario actual con rol entrenador permitiendo el acceso aunque tenga suscripción cancelada.
+    Usado exclusivamente por el endpoint de reactivación.
+    """
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Credenciales de autenticación no válidas",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    payload = verificar_token_acceso(token)
+    if payload is None:
+        raise credentials_exception
+    email: str = payload.get("sub")
+    if email is None:
+        raise credentials_exception
+        
+    usuario = db.query(Usuario).filter(Usuario.email == email).first()
+    if usuario is None or usuario.rol != "entrenador":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acceso restringido a entrenadores"
+        )
+    return usuario
+

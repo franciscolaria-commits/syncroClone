@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { api, logout } from "../services/api";
-import { LogOut, Users, Settings, Activity, DollarSign, BarChart2, Trash2, CheckCircle, XCircle } from "lucide-react";
+import { LogOut, Users, Settings, Activity, DollarSign, BarChart2, Trash2, CheckCircle, XCircle, Clock, ShieldAlert, RotateCcw } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
 export default function SuperAdminPanel() {
@@ -16,6 +16,12 @@ export default function SuperAdminPanel() {
   const [payMethod, setPayMethod] = useState("transferencia");
   const [payNotes, setPayNotes] = useState("");
   const [submittingPay, setSubmittingPay] = useState(false);
+
+  // Grace Period Modal State
+  const [showGraceModal, setShowGraceModal] = useState(false);
+  const [selectedCoachForGrace, setSelectedCoachForGrace] = useState(null);
+  const [graceDays, setGraceDays] = useState(15);
+  const [submittingGrace, setSubmittingGrace] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -90,6 +96,35 @@ export default function SuperAdminPanel() {
     setShowPayModal(true);
   };
 
+  const handleGrantGracePeriod = async (e) => {
+    e.preventDefault();
+    if (!selectedCoachForGrace || !graceDays || graceDays < 1) return;
+    setSubmittingGrace(true);
+    try {
+      await api.post(`/api/v1/admin/coaches/${selectedCoachForGrace.id_usuario}/grant-grace-period`, {
+        dias: parseInt(graceDays)
+      });
+      alert(`Prórroga de ${graceDays} días otorgada exitosamente.`);
+      setShowGraceModal(false);
+      fetchData();
+    } catch (err) {
+      alert("Error al otorgar prórroga: " + err.message);
+    } finally {
+      setSubmittingGrace(false);
+    }
+  };
+
+  const handleRevokeGracePeriod = async (coachId) => {
+    if (!window.confirm("¿Estás seguro de que deseas revocar la prórroga? El entrenador y sus alumnos quedarán bloqueados de inmediato.")) return;
+    try {
+      await api.post(`/api/v1/admin/coaches/${coachId}/revoke-grace-period`);
+      alert("Prórroga revocada exitosamente.");
+      fetchData();
+    } catch (err) {
+      alert("Error al revocar prórroga: " + err.message);
+    }
+  };
+
   if (loading && coaches.length === 0 && !finances) {
     return <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">Cargando panel...</div>;
   }
@@ -156,6 +191,21 @@ export default function SuperAdminPanel() {
                       <td className="px-4 py-4">
                         <div className="font-medium text-white">{coach.email}</div>
                         <div className="text-xs text-gray-500 mb-1">{coach.nombre || "Sin nombre"} • {coach.total_alumnos}/{coach.limite_alumnos} Alumnos</div>
+                        {coach.suscripcion_cancelada && (
+                          <div className="my-1">
+                            {coach.en_prorroga_activa ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                                <Clock className="w-3 h-3" />
+                                Cancelada (Prórroga: {coach.dias_prorroga_restantes}d)
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-red-500/15 text-red-400 border border-red-500/30">
+                                <ShieldAlert className="w-3 h-3" />
+                                Suscripción Cancelada
+                              </span>
+                            )}
+                          </div>
+                        )}
                         {(() => {
                            if (!coach.en_periodo_prueba) return null;
                            if (!coach.fecha_fin_prueba) return <div className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-blue-500/10 text-blue-400">Prueba Activa</div>;
@@ -269,18 +319,43 @@ export default function SuperAdminPanel() {
                         </div>
                       </td>
                       <td className="px-4 py-4">
-                        <div className="flex justify-center gap-2">
+                        <div className="flex justify-center items-center gap-2">
+                           {/* Prórroga para entrenadores con suscripción cancelada */}
+                           {coach.suscripcion_cancelada && (
+                             <>
+                               <button
+                                 onClick={() => {
+                                   setSelectedCoachForGrace(coach);
+                                   setGraceDays(coach.dias_prorroga_restantes > 0 ? coach.dias_prorroga_restantes : 15);
+                                   setShowGraceModal(true);
+                                 }}
+                                 className="p-2 bg-amber-600/20 text-amber-400 hover:bg-amber-600/40 rounded-lg transition-colors cursor-pointer"
+                                 title={coach.en_prorroga_activa ? "Extender / Modificar Prórroga" : "Otorgar Prórroga (Default 15 días)"}
+                               >
+                                 <Clock className="w-4 h-4" />
+                               </button>
+                               {coach.en_prorroga_activa && (
+                                 <button
+                                   onClick={() => handleRevokeGracePeriod(coach.id_usuario)}
+                                   className="p-2 bg-orange-600/20 text-orange-400 hover:bg-orange-600/40 rounded-lg transition-colors cursor-pointer"
+                                   title="Revocar Prórroga Inmediatamente"
+                                 >
+                                   <RotateCcw className="w-4 h-4" />
+                                 </button>
+                               )}
+                             </>
+                           )}
                            <button 
                              onClick={() => openPayModal(coach)}
                              disabled={coach.pago_mes_registrado}
-                             className={`p-2 rounded-lg transition-colors ${coach.pago_mes_registrado ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/40'}`}
+                             className={`p-2 rounded-lg transition-colors ${coach.pago_mes_registrado ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/40 cursor-pointer'}`}
                              title="Registrar Pago"
                            >
                              <DollarSign className="w-4 h-4" />
                            </button>
                            <button 
                              onClick={() => deleteCoach(coach.id_usuario)}
-                             className="p-2 bg-red-600/20 text-red-400 rounded-lg hover:bg-red-600/40 transition-colors"
+                             className="p-2 bg-red-600/20 text-red-400 rounded-lg hover:bg-red-600/40 transition-colors cursor-pointer"
                              title="Borrar Entrenador"
                            >
                              <Trash2 className="w-4 h-4" />
@@ -429,6 +504,61 @@ export default function SuperAdminPanel() {
                 </div>
               </form>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Otorgar / Modificar Prórroga */}
+      {showGraceModal && selectedCoachForGrace && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-gray-800 border border-gray-700 rounded-2xl max-w-md w-full p-6 shadow-2xl relative">
+            <h3 className="text-lg font-bold text-white mb-1 flex items-center gap-2">
+              <Clock className="w-5 h-5 text-amber-400" />
+              Prórroga de Suscripción
+            </h3>
+            <p className="text-xs text-gray-400 mb-4">
+              Entrenador: <span className="text-white font-medium">{selectedCoachForGrace.email}</span>
+            </p>
+
+            <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs text-amber-300 leading-relaxed">
+              Durante la prórroga, la cuenta mantiene su suscripción como <strong>cancelada</strong>, pero el entrenador y sus alumnos tienen acceso completo para operar normalmente. Al cumplirse los días, el acceso se bloqueará automáticamente.
+            </div>
+
+            <form onSubmit={handleGrantGracePeriod} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-400 mb-1">
+                  Días de Prórroga
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="365"
+                  required
+                  value={graceDays}
+                  onChange={(e) => setGraceDays(e.target.value)}
+                  className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none transition-all font-mono"
+                  placeholder="15"
+                />
+                <p className="text-[10px] text-gray-500 mt-1">Por defecto: 15 días a partir de ahora.</p>
+              </div>
+
+              <div className="pt-2 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowGraceModal(false)}
+                  className="flex-1 px-4 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-xl font-medium transition-colors cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingGrace}
+                  className="flex-1 px-4 py-3 bg-amber-600 hover:bg-amber-500 text-white rounded-xl font-bold transition-all shadow-lg shadow-amber-500/20 disabled:opacity-50 cursor-pointer"
+                >
+                  {submittingGrace ? "Guardando..." : "Confirmar Prórroga"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -28,6 +28,13 @@ class Entrenador(Base):
     en_periodo_prueba = Column(Boolean, default=False, nullable=False)
     fecha_fin_prueba = Column(DateTime, nullable=True)
     estado_activo = Column(Boolean, default=True, nullable=False, index=True) # Soft delete
+    
+    # Cancelación de suscripción y prórroga
+    suscripcion_cancelada = Column(Boolean, default=False, nullable=False, index=True)
+    fecha_cancelacion = Column(DateTime, nullable=True)
+    prorroga_dias = Column(Integer, default=0, nullable=False)
+    fecha_fin_prorroga = Column(DateTime, nullable=True)
+    
     modelo_pago = Column(String, default="por_alumno", nullable=False) # 'fijo', 'por_alumno'
     monto_fijo = Column(Float, nullable=True)
     tipo_cobro_alumnos = Column(String, nullable=True) # 'fijo' o 'por_clase' etc.

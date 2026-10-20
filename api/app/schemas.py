@@ -63,6 +63,12 @@ class EntrenadorBase(BaseModel):
     config_bloqueo_morosos: Optional[str] = "nunca"
     config_bloqueo_dias: Optional[int] = 0
     tipo_cuenta: Optional[str] = "estandar"
+    suscripcion_cancelada: Optional[bool] = False
+    fecha_cancelacion: Optional[datetime] = None
+    prorroga_dias: Optional[int] = 0
+    fecha_fin_prorroga: Optional[datetime] = None
+    en_prorroga_activa: Optional[bool] = False
+    dias_prorroga_restantes: Optional[int] = None
 
 class EntrenadorUpdate(EntrenadorBase):
     pass
@@ -404,6 +410,12 @@ class CoachAdminOut(BaseModel):
     total_alumnos: int
     deuda_estimada_mes: float = 0.0
     pago_mes_registrado: bool = False
+    suscripcion_cancelada: bool = False
+    fecha_cancelacion: Optional[datetime] = None
+    prorroga_dias: int = 0
+    fecha_fin_prorroga: Optional[datetime] = None
+    en_prorroga_activa: bool = False
+    dias_prorroga_restantes: Optional[int] = None
 
 class CoachAdminUpdate(BaseModel):
     limite_alumnos: Optional[int] = None
@@ -414,6 +426,13 @@ class CoachAdminUpdate(BaseModel):
     fecha_vencimiento: Optional[datetime] = None
     en_periodo_prueba: Optional[bool] = None
     fecha_fin_prueba: Optional[datetime] = None
+    suscripcion_cancelada: Optional[bool] = None
+    fecha_cancelacion: Optional[datetime] = None
+    prorroga_dias: Optional[int] = None
+    fecha_fin_prorroga: Optional[datetime] = None
+
+class GrantGracePeriodRequest(BaseModel):
+    dias: int = 15
 
 class PagoEntrenadorCreate(BaseModel):
     monto: float

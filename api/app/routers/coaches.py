@@ -8,7 +8,7 @@ from app import models, schemas
 from app.database import get_db
 from app.models import Usuario, Entrenador, Invitacion
 from app.schemas import EntrenadorOut, EntrenadorUpdate, InvitacionOut, InvitacionCreate
-from app.utils.auth import get_current_user
+from app.utils.auth import get_current_user, get_current_coach_allow_cancelled
 from app.services.r2 import upload_file_to_r2
 
 router = APIRouter(
@@ -37,6 +37,9 @@ def get_coach_profile(
             detail="Perfil de entrenador no encontrado."
         )
         
+    now = datetime.utcnow()
+    perfil.en_prorroga_activa = bool(perfil.suscripcion_cancelada and perfil.fecha_fin_prorroga and perfil.fecha_fin_prorroga > now)
+    perfil.dias_prorroga_restantes = max(0, (perfil.fecha_fin_prorroga - now).days + 1) if perfil.en_prorroga_activa else 0
     return perfil
 
 @router.put("/profile", response_model=EntrenadorOut)
@@ -1228,3 +1231,65 @@ def reload_classes(
         
     db.commit()
     return {"message": "Clases recargadas exitosamente", "clases_restantes": alumno.clases_restantes}
+
+
+@router.post("/subscription/cancel")
+def cancel_coach_subscription(
+    current_user: Usuario = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Cancela la suscripción del entrenador autenticado.
+    Bloquea de inmediato las funcionalidades del entrenador y las de sus alumnos.
+    """
+    if current_user.rol != "entrenador":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acceso exclusivo para entrenadores."
+        )
+
+    entrenador = db.query(Entrenador).filter(Entrenador.id_usuario == current_user.id_usuario).first()
+    if not entrenador:
+        raise HTTPException(status_code=404, detail="Entrenador no encontrado")
+
+    entrenador.suscripcion_cancelada = True
+    entrenador.fecha_cancelacion = datetime.utcnow()
+    entrenador.fecha_fin_prorroga = None
+    entrenador.prorroga_dias = 0
+
+    db.commit()
+    db.refresh(entrenador)
+
+    return {
+        "message": "Suscripción cancelada con éxito. Tu cuenta y la de tus alumnos han quedado en pausa.",
+        "suscripcion_cancelada": True,
+        "fecha_cancelacion": entrenador.fecha_cancelacion
+    }
+
+
+@router.post("/subscription/reactivate")
+def reactivate_coach_subscription(
+    current_user: Usuario = Depends(get_current_coach_allow_cancelled),
+    db: Session = Depends(get_db)
+):
+    """
+    Reactiva la suscripción del entrenador, desbloqueando su cuenta y la de todos sus alumnos.
+    Accesible para el entrenador incluso si su suscripción figura cancelada.
+    """
+    entrenador = db.query(Entrenador).filter(Entrenador.id_usuario == current_user.id_usuario).first()
+    if not entrenador:
+        raise HTTPException(status_code=404, detail="Entrenador no encontrado")
+
+    entrenador.suscripcion_cancelada = False
+    entrenador.fecha_cancelacion = None
+    entrenador.fecha_fin_prorroga = None
+    entrenador.prorroga_dias = 0
+
+    db.commit()
+    db.refresh(entrenador)
+
+    return {
+        "message": "¡Tu cuenta ha sido reactivada con éxito! Ya puedes utilizar todas las funcionalidades y tus alumnos vuelven a tener acceso.",
+        "suscripcion_cancelada": False
+    }
+

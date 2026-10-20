@@ -8,7 +8,7 @@ import FinancesPanel from '../components/FinancesPanel.jsx';
 import TutorialPanel from '../components/TutorialPanel.jsx';
 import ImportRoutineModal from '../components/ImportRoutineModal.jsx';
 import GymConfigPanel from '../components/GymConfigPanel.jsx';
-import { Menu, X, Copy, Download, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
+import { Menu, X, Copy, Download, ChevronDown, ChevronUp, AlertTriangle, ShieldAlert, Loader2 } from "lucide-react";
 
 export default function CoachDashboard() {
   const [activePanel, setActivePanel] = useState('students');
@@ -21,6 +21,9 @@ export default function CoachDashboard() {
   const [selectedStudentId, setSelectedStudentId] = useState(null);
   const [reloadModal, setReloadModal] = useState({ isOpen: false, studentId: null, defaultPkgId: null });
   const [gymConfig, setGymConfig] = useState(null);
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [cancelConfirmText, setCancelConfirmText] = useState("");
+  const [isSubmittingCancellation, setIsSubmittingCancellation] = useState(false);
 
   // Load gym config
   useEffect(() => {
@@ -52,6 +55,35 @@ export default function CoachDashboard() {
   const [assignMenuOpenId, setAssignMenuOpenId] = useState(null);
   const [selectedStudentsForAssign, setSelectedStudentsForAssign] = useState([]);
   const modal = useModal();
+
+  const handleCancelSubscription = async () => {
+    if (cancelConfirmText.trim() !== "CANCELAR") return;
+    setIsSubmittingCancellation(true);
+    try {
+      await api.post('/api/v1/coaches/subscription/cancel');
+      setIsCancelModalOpen(false);
+      sessionStorage.setItem("fitness_blocked_reason", "Suscripción de entrenador cancelada. Reactiva tu suscripción para continuar.");
+      window.location.href = "/blocked";
+    } catch (err) {
+      await modal.alert("Error al cancelar suscripción: " + (err.message || "Error desconocido"));
+    } finally {
+      setIsSubmittingCancellation(false);
+    }
+  };
+
+  const handleReactivateSubscription = async () => {
+    setIsSubmittingCancellation(true);
+    try {
+      await api.post('/api/v1/coaches/subscription/reactivate');
+      sessionStorage.removeItem("fitness_blocked_reason");
+      await modal.alert("¡Tu cuenta ha sido reactivada con éxito!");
+      queryClient.invalidateQueries({ queryKey: ['coachProfile'] });
+    } catch (err) {
+      await modal.alert("Error al reactivar cuenta: " + (err.message || "Error desconocido"));
+    } finally {
+      setIsSubmittingCancellation(false);
+    }
+  };
 
   useEffect(() => {
     const userRaw = localStorage.getItem("fitness_user");
@@ -310,6 +342,33 @@ export default function CoachDashboard() {
 
   return (
     <div className="w-full max-w-5xl mx-auto flex flex-col gap-6 p-4 md:p-8 relative">
+      {/* BANNER PRÓRROGA ACTIVA CON SUSCRIPCIÓN CANCELADA */}
+      {profile?.suscripcion_cancelada && profile?.en_prorroga_activa && (
+        <div className="bg-amber-500/15 border border-amber-500/40 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg animate-in fade-in slide-in-from-top-4 relative z-30">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-amber-500/20 rounded-xl shrink-0">
+              <AlertTriangle className="w-6 h-6 text-amber-400" />
+            </div>
+            <div>
+              <h3 className="text-amber-400 font-bold text-sm uppercase tracking-wider flex items-center gap-2">
+                Suscripción Cancelada — Prórroga de Cortesía Activa
+              </h3>
+              <p className="text-zinc-300 text-xs sm:text-sm mt-1">
+                Tu suscripción está cancelada. Dispones de prórroga activa <strong>hasta el {profile.fecha_fin_prorroga ? new Date(profile.fecha_fin_prorroga).toLocaleDateString() : 'N/A'} (quedan {profile.dias_prorroga_restantes ?? 0} días)</strong>. Tus alumnos pueden acceder normalmente. Puedes reactivar tu cuenta definitivamente en cualquier momento.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleReactivateSubscription}
+            disabled={isSubmittingCancellation}
+            className="shrink-0 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-xs uppercase tracking-widest rounded-xl transition-all shadow-md shadow-emerald-500/20 cursor-pointer flex items-center gap-1.5"
+          >
+            {isSubmittingCancellation ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+            Reactivar Cuenta
+          </button>
+        </div>
+      )}
+
       {isMissingPackages && (
         <div className="bg-red-500/20 border border-red-500/50 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg animate-in fade-in slide-in-from-top-4 relative z-30">
           <div className="flex items-center gap-3">
@@ -1161,6 +1220,37 @@ export default function CoachDashboard() {
             <div className="border-t border-zinc-800 my-4" />
             <GymConfigPanel />
 
+            {/* ZONA PELIGROSA: CANCELACIÓN DE SUSCRIPCIÓN */}
+            <div className="border-t border-zinc-800/80 my-2" />
+            <div className="rounded-xl p-4 bg-red-950/20 border border-red-900/30 flex flex-col gap-3">
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-red-900/30 rounded-lg shrink-0 mt-0.5">
+                  <ShieldAlert className="w-4 h-4 text-red-400" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-red-400/90">
+                    Zona Peligrosa
+                  </h3>
+                  <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
+                    Si decides cancelar tu suscripción a Syncro, tu acceso y el de todos tus alumnos quedarán pausados inmediatamente. Tus datos y rutinas se conservarán intactos y podrás reactivar tu cuenta en cualquier momento.
+                  </p>
+                </div>
+              </div>
+
+              <div className="pt-2 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCancelConfirmText("");
+                    setIsCancelModalOpen(true);
+                  }}
+                  className="px-3 py-2 text-xs font-semibold text-red-400 hover:text-red-300 bg-red-950/40 hover:bg-red-900/30 border border-red-900/50 rounded-lg transition-colors cursor-pointer"
+                >
+                  Cancelar Suscripción
+                </button>
+              </div>
+            </div>
+
           </section>
         )}
       </div>
@@ -1178,6 +1268,74 @@ export default function CoachDashboard() {
           students={students}
           onClose={() => setShowImportModal(false)}
         />
+      )}
+
+      {/* Modal Confirmación de Cancelación de Suscripción */}
+      {isCancelModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-zinc-900 border border-red-900/40 rounded-2xl max-w-md w-full p-6 shadow-2xl relative">
+            <button
+              onClick={() => setIsCancelModalOpen(false)}
+              className="absolute top-4 right-4 text-zinc-500 hover:text-zinc-300 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2.5 bg-red-900/30 border border-red-800/50 rounded-xl">
+                <AlertTriangle className="w-6 h-6 text-red-400" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">¿Cancelar Suscripción?</h3>
+                <p className="text-xs text-red-400/80">Acción de suspensión inmediata</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-zinc-300 mb-3 leading-relaxed">
+              Al confirmar, tu servicio se pausará de inmediato:
+            </p>
+            <ul className="text-xs text-zinc-400 space-y-1.5 mb-4 list-disc list-inside bg-zinc-950/50 p-3 rounded-lg border border-zinc-800">
+              <li>Tus herramientas de gestión quedarán bloqueadas.</li>
+              <li>Tus alumnos no podrán acceder (verán un aviso de servicio pausado).</li>
+              <li>Tus rutinas, ejercicios y registros se mantendrán seguros.</li>
+              <li>Podrás reactivar tu cuenta en cualquier momento.</li>
+            </ul>
+
+            <div className="mb-4">
+              <label className="text-xs text-zinc-300 block mb-1.5 font-medium">
+                Escribe <span className="font-mono text-red-400 font-bold">CANCELAR</span> para confirmar:
+              </label>
+              <input
+                type="text"
+                value={cancelConfirmText}
+                onChange={(e) => setCancelConfirmText(e.target.value)}
+                placeholder="CANCELAR"
+                className="w-full bg-zinc-950 border border-zinc-700 focus:border-red-500 rounded-lg px-3 py-2 text-sm text-white font-mono placeholder-zinc-600 outline-none transition-colors"
+                autoFocus
+              />
+            </div>
+
+            <div className="flex gap-3 justify-end">
+              <button
+                type="button"
+                onClick={() => setIsCancelModalOpen(false)}
+                disabled={isSubmittingCancellation}
+                className="px-4 py-2 text-xs font-semibold text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors cursor-pointer"
+              >
+                Volver
+              </button>
+              <button
+                type="button"
+                onClick={handleCancelSubscription}
+                disabled={cancelConfirmText.trim() !== "CANCELAR" || isSubmittingCancellation}
+                className="px-4 py-2 text-xs font-bold text-white bg-red-600 hover:bg-red-500 disabled:bg-red-950 disabled:text-red-800 disabled:border-red-900/30 rounded-lg transition-colors cursor-pointer border border-red-500/30 flex items-center gap-2"
+              >
+                {isSubmittingCancellation && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                Confirmar Cancelación
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
