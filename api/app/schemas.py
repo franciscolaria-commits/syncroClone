@@ -156,6 +156,29 @@ class AlumnoOut(AlumnoBase):
     class Config:
         from_attributes = True
 
+class AlumnoListOut(AlumnoBase):
+    id_usuario: UUID
+    id_entrenador: UUID
+    estado_activo: bool
+    fecha_ultimo_peso: Optional[datetime] = None
+    fecha_vencimiento_pago: Optional[datetime] = None
+    usuario: UsuarioOut
+    rutina_nombre: Optional[str] = None
+    requiere_autorizacion_tutor: Optional[bool] = False
+    autorizacion_tutor_completada: Optional[bool] = True
+    email_tutor: Optional[str] = None
+
+    # Gym mode fields
+    tipo_membresia: Optional[str] = None
+    clases_compradas: Optional[int] = None
+    gym_paquete_id: Optional[str] = None
+    clases_usadas_total: Optional[int] = None
+    clases_restantes: Optional[int] = None
+    vencimiento_estimado_clases: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
 class UpdatePaymentDate(BaseModel):
     dia_vencimiento_personalizado: Optional[int] = None
 
@@ -635,4 +658,14 @@ class AutorizarConsentimientoRequest(BaseModel):
 
 class ReenviarSolicitudRequest(BaseModel):
     email_tutor: Optional[EmailStr] = None
+
+# ==========================================
+# BOOTSTRAP ENTRENADOR
+# ==========================================
+
+class CoachBootstrapOut(BaseModel):
+    profile: EntrenadorOut
+    gym_config: dict
+    students: List[AlumnoListOut]
+    pending_audits_count: int = 0
 

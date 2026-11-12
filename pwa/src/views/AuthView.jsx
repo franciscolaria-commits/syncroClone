@@ -1,10 +1,13 @@
 import CalendarPicker from '../components/CalendarPicker.jsx';
 import React, { useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { del } from 'idb-keyval';
 import { api } from '../services/api.js';
 import { useModal } from '../components/ModalProvider.jsx';
 import { Eye, EyeOff } from 'lucide-react';
 
 export default function AuthView({ onLoginSuccess }) {
+  const queryClient = useQueryClient();
   const urlParams = new URLSearchParams(window.location.search);
   const initialCoachCode = urlParams.get('coachCode') || '';
   const initialActivePanel = initialCoachCode ? 'registerStudent' : 'login';
@@ -71,11 +74,16 @@ export default function AuthView({ onLoginSuccess }) {
         email_tutor: data.email_tutor
       };
       localStorage.setItem("fitness_user", JSON.stringify(userData));
-      try {
-        window.indexedDB.deleteDatabase("keyval-store");
-      } catch (e) {}
+      queryClient.clear();
+      del("REACT_QUERY_OFFLINE_CACHE").catch(() => {});
       const _redirectUrl = new URLSearchParams(window.location.search).get("redirect");
-      window.location.href = _redirectUrl || "/";
+      if (_redirectUrl && !_redirectUrl.startsWith('/')) {
+        window.location.href = _redirectUrl;
+      } else if (onLoginSuccess) {
+        onLoginSuccess(_redirectUrl);
+      } else {
+        window.location.href = _redirectUrl || "/";
+      }
     } catch (err) {
       setError(err.message);
     } finally {

@@ -214,7 +214,9 @@ export default function ImportRoutineModal({ onClose, students }) {
       const data = await importMutation.mutateAsync(payload);
       setImportResult(data);
       setSingleStep(4);
-      queryClient.invalidateQueries({ queryKey: ['coachStudents'] });
+      queryClient.invalidateQueries({ queryKey: ['students'] });
+      queryClient.invalidateQueries({ queryKey: ['routines'] });
+      queryClient.invalidateQueries({ queryKey: ['exercises'] });
     } catch (err) { setImportResult({ error: err.message }); setSingleStep(4); }
   };
 
@@ -350,7 +352,9 @@ export default function ImportRoutineModal({ onClose, students }) {
     setMultiResults(results);
     setMultiStep(5);
     setIsImporting(false);
-    queryClient.invalidateQueries({ queryKey: ['coachStudents'] });
+    queryClient.invalidateQueries({ queryKey: ['students'] });
+    queryClient.invalidateQueries({ queryKey: ['routines'] });
+    queryClient.invalidateQueries({ queryKey: ['exercises'] });
   };
 
   // ============================================================

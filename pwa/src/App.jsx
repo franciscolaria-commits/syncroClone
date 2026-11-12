@@ -24,6 +24,7 @@ import './index.css';
 initOfflineSync();
 
 export default function App() {
+  const [currentPath, setCurrentPath] = useState(() => window.location.pathname);
   const [session, setSession] = useState(() => {
     try {
       const token = localStorage.getItem("fitness_jwt");
@@ -36,14 +37,29 @@ export default function App() {
   });
 
   useEffect(() => {
+    const handlePopState = () => setCurrentPath(window.location.pathname);
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const navigate = (to, { replace = false } = {}) => {
+    if (replace) {
+      window.history.replaceState(null, '', to);
+    } else {
+      window.history.pushState(null, '', to);
+    }
+    setCurrentPath(window.location.pathname);
+  };
+
+  useEffect(() => {
     checkSession();
   }, []);
 
   useEffect(() => {
-    if (session && window.location.pathname === '/login') {
-      window.history.replaceState(null, '', '/');
+    if (session && currentPath === '/login') {
+      navigate('/', { replace: true });
     }
-  }, [session]);
+  }, [session, currentPath]);
 
   const checkSession = () => {
     const token = localStorage.getItem("fitness_jwt");
@@ -76,7 +92,16 @@ export default function App() {
     }
   };
 
-  const path = window.location.pathname;
+  const handleLoginSuccess = (redirectTo) => {
+    checkSession();
+    if (redirectTo && redirectTo.startsWith('/')) {
+      navigate(redirectTo, { replace: true });
+    } else if (currentPath === '/login') {
+      navigate('/', { replace: true });
+    }
+  };
+
+  const path = currentPath;
 
   // Ruta pública de consentimiento parental (no requiere login)
   if (path === '/consentimiento-tutor') {
@@ -93,17 +118,17 @@ export default function App() {
 
   if (path === '/admin-secreto') {
     if (!session || session.rol !== 'superadmin') {
-      return <React.Suspense fallback={<LoadingScreen />}><AuthView onLoginSuccess={checkSession} /></React.Suspense>;
+      return <React.Suspense fallback={<LoadingScreen />}><AuthView onLoginSuccess={handleLoginSuccess} /></React.Suspense>;
     }
     return <React.Suspense fallback={<LoadingScreen />}><SuperAdminPanel /></React.Suspense>;
   }
 
   if (!session) {
     if (path === '/login') {
-      return <React.Suspense fallback={<LoadingScreen />}><AuthView onLoginSuccess={checkSession} /></React.Suspense>;
+      return <React.Suspense fallback={<LoadingScreen />}><AuthView onLoginSuccess={handleLoginSuccess} /></React.Suspense>;
     }
     // Por defecto, visitantes no autenticados ven la Landing B2B
-    return <React.Suspense fallback={<LoadingScreen />}><LandingPage /></React.Suspense>;
+    return <React.Suspense fallback={<LoadingScreen />}><LandingPage onNavigateLogin={() => navigate('/login')} /></React.Suspense>;
   }
 
   // == Si hay sesión, ignoramos la Landing y resolvemos vistas ==

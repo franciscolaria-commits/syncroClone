@@ -1,9 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api.js';
 import { useModal } from '../components/ModalProvider.jsx';
 
 export default function WorkoutBuilder({ initialData, onClose, onSaveSuccess }) {
-  const [exercisesCatalog, setExercisesCatalog] = useState([]);
+  const { data: exercisesCatalog = [] } = useQuery({
+    queryKey: ['exercises'],
+    queryFn: () => api.get("/api/v1/exercises"),
+  });
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Todos');
   const categories = ['Todos', 'Pecho', 'Espalda', 'Piernas', 'Hombros', 'Brazos', 'Core', 'General'];
@@ -32,19 +36,6 @@ export default function WorkoutBuilder({ initialData, onClose, onSaveSuccess }) 
   const [days, setDays] = useState(initialDays);
 
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    // Cargar catálogo de ejercicios para seleccionar
-    const fetchExercises = async () => {
-      try {
-        const data = await api.get("/api/v1/exercises");
-        setExercisesCatalog(data);
-      } catch (err) {
-        console.error("Error al cargar ejercicios", err);
-      }
-    };
-    fetchExercises();
-  }, []);
 
   const addDay = () => {
     setDays([...days, { id: `dia-${Date.now()}`, name: `Día ${days.length + 1}`, exercises: [] }]);

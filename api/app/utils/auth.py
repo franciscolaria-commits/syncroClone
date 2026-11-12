@@ -81,15 +81,43 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
             email=email,
             rol="superadmin"
         )
-        
-    usuario = db.query(Usuario).filter(Usuario.email == email).first()
-    if usuario is None:
-        raise credentials_exception
-        
+
+    entrenador = None
+    alumno = None
+    entrenador_asignado = None
+
+    if rol == "entrenador":
+        row = db.query(Usuario, Entrenador).outerjoin(
+            Entrenador, Entrenador.id_usuario == Usuario.id_usuario
+        ).filter(Usuario.email == email).first()
+        if row is None:
+            raise credentials_exception
+        usuario, entrenador = row
+    elif rol == "alumno":
+        row = db.query(Usuario, Alumno, Entrenador).outerjoin(
+            Alumno, Alumno.id_usuario == Usuario.id_usuario
+        ).outerjoin(
+            Entrenador, Entrenador.id_usuario == Alumno.id_entrenador
+        ).filter(Usuario.email == email).first()
+        if row is None:
+            raise credentials_exception
+        usuario, alumno, entrenador_asignado = row
+    else:
+        usuario = db.query(Usuario).filter(Usuario.email == email).first()
+        if usuario is None:
+            raise credentials_exception
+        if usuario.rol == "entrenador":
+            entrenador = db.query(Entrenador).filter(Entrenador.id_usuario == usuario.id_usuario).first()
+        elif usuario.rol == "alumno":
+            alumno = db.query(Alumno).filter(Alumno.id_usuario == usuario.id_usuario).first()
+            if alumno:
+                entrenador_asignado = db.query(Entrenador).filter(Entrenador.id_usuario == alumno.id_entrenador).first()
+
     now = datetime.utcnow()
     # Validaciones financieras de acceso B2B y cancelación de suscripción
     if usuario.rol == "entrenador":
-        entrenador = db.query(Entrenador).filter(Entrenador.id_usuario == usuario.id_usuario).first()
+        if entrenador is None and rol != "entrenador":
+            entrenador = db.query(Entrenador).filter(Entrenador.id_usuario == usuario.id_usuario).first()
         if entrenador:
             if entrenador.suscripcion_cancelada:
                 tiene_prorroga = bool(entrenador.fecha_fin_prorroga and entrenador.fecha_fin_prorroga > now)
@@ -104,23 +132,24 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
                     detail="Pago requerido"
                 )
     elif usuario.rol == "alumno":
-        alumno = db.query(Alumno).filter(Alumno.id_usuario == usuario.id_usuario).first()
-        if alumno:
-            entrenador_asignado = db.query(Entrenador).filter(Entrenador.id_usuario == alumno.id_entrenador).first()
-            if entrenador_asignado:
-                if entrenador_asignado.suscripcion_cancelada:
-                    tiene_prorroga = bool(entrenador_asignado.fecha_fin_prorroga and entrenador_asignado.fecha_fin_prorroga > now)
-                    if not tiene_prorroga:
-                        raise HTTPException(
-                            status_code=status.HTTP_403_FORBIDDEN,
-                            detail="Servicio de entrenador suspendido por suscripción pausada"
-                        )
-                if entrenador_asignado.estado_financiero == "suspendido":
+        if alumno is None and rol != "alumno":
+            alumno = db.query(Alumno).filter(Alumno.id_usuario == usuario.id_usuario).first()
+            if alumno:
+                entrenador_asignado = db.query(Entrenador).filter(Entrenador.id_usuario == alumno.id_entrenador).first()
+        if alumno and entrenador_asignado:
+            if entrenador_asignado.suscripcion_cancelada:
+                tiene_prorroga = bool(entrenador_asignado.fecha_fin_prorroga and entrenador_asignado.fecha_fin_prorroga > now)
+                if not tiene_prorroga:
                     raise HTTPException(
                         status_code=status.HTTP_403_FORBIDDEN,
-                        detail="Servicio temporalmente suspendido"
+                        detail="Servicio de entrenador suspendido por suscripción pausada"
                     )
-                
+            if entrenador_asignado.estado_financiero == "suspendido":
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Servicio temporalmente suspendido"
+                )
+
     return usuario
 
 

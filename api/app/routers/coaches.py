@@ -1,13 +1,14 @@
 import uuid
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
+from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 from typing import List
 
 from app import models, schemas
 from app.database import get_db
 from app.models import Usuario, Entrenador, Invitacion
-from app.schemas import EntrenadorOut, EntrenadorUpdate, InvitacionOut, InvitacionCreate
+from app.schemas import EntrenadorOut, EntrenadorUpdate, InvitacionOut, InvitacionCreate, CoachBootstrapOut
 from app.utils.auth import get_current_user, get_current_coach_allow_cancelled
 from app.services.r2 import upload_file_to_r2
 
@@ -15,6 +16,81 @@ router = APIRouter(
     prefix="/api/v1/coaches",
     tags=["entrenadores"]
 )
+
+@router.get("/bootstrap", response_model=CoachBootstrapOut)
+def get_coach_bootstrap(
+    current_user: Usuario = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Endpoint bootstrap para la carga inicial del panel del entrenador.
+    Reúne perfil, configuración de gimnasio, alumnos y conteo de auditorías pendientes en 1 HTTP request.
+    """
+    if current_user.rol != "entrenador":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acceso exclusivo para entrenadores."
+        )
+
+    perfil = db.query(Entrenador).options(
+        joinedload(Entrenador.usuario)
+    ).filter(
+        Entrenador.id_usuario == current_user.id_usuario
+    ).first()
+    if not perfil:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Perfil de entrenador no encontrado."
+        )
+
+    now = datetime.utcnow()
+    perfil.en_prorroga_activa = bool(
+        perfil.suscripcion_cancelada and perfil.fecha_fin_prorroga and perfil.fecha_fin_prorroga > now
+    )
+    perfil.dias_prorroga_restantes = (
+        max(0, (perfil.fecha_fin_prorroga - now).days + 1) if perfil.en_prorroga_activa else 0
+    )
+
+    gym_config = {
+        "tipo_cuenta": perfil.tipo_cuenta or "estandar",
+        "gym_tipo_cobro": perfil.gym_tipo_cobro,
+        "gym_frecuencia_tipo": perfil.gym_frecuencia_tipo,
+        "gym_frecuencia_valor": perfil.gym_frecuencia_valor,
+        "gym_monto_pase_libre": float(perfil.gym_monto_pase_libre) if perfil.gym_monto_pase_libre else None,
+        "gym_monto_clases": float(perfil.gym_monto_clases) if perfil.gym_monto_clases else None,
+        "gym_paquetes_clases": perfil.gym_paquetes_clases or [],
+        "qr_url": f"/qr/{str(current_user.id_usuario)}",
+    }
+
+    resultados = db.query(
+        models.Alumno,
+        models.Rutina.nombre_rutina
+    ).options(
+        joinedload(models.Alumno.usuario)
+    ).outerjoin(
+        models.Rutina, models.Alumno.id_rutina_activa == models.Rutina.id_rutina
+    ).filter(
+        models.Alumno.id_entrenador == current_user.id_usuario
+    ).all()
+
+    alumnos = []
+    for alumno, nombre_rutina in resultados:
+        alumno.rutina_nombre = nombre_rutina
+        alumnos.append(alumno)
+
+    pending_audits_count = db.query(func.count(models.LogLigaAlumno.id_log)).join(
+        models.Alumno, models.Alumno.id_usuario == models.LogLigaAlumno.id_alumno
+    ).filter(
+        models.Alumno.id_entrenador == current_user.id_usuario,
+        models.LogLigaAlumno.estado_validacion == "pendiente_auditoria"
+    ).scalar() or 0
+
+    return {
+        "profile": perfil,
+        "gym_config": gym_config,
+        "students": alumnos,
+        "pending_audits_count": pending_audits_count,
+    }
 
 @router.get("/profile", response_model=EntrenadorOut)
 def get_coach_profile(

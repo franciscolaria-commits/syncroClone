@@ -1,5 +1,4 @@
 import os
-import asyncio
 import secrets
 from datetime import datetime, timedelta, date
 from fastapi import APIRouter, Depends, HTTPException, status, Request, BackgroundTasks
@@ -255,7 +254,7 @@ def register_student(
 
 @router.post("/login", response_model=Token)
 @limiter.limit("5/minute")
-async def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     """
     Endpoint para autenticar usuarios mediante OAuth2.
     Valida las credenciales y retorna un token de acceso JWT.
@@ -275,18 +274,25 @@ async def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends
             id_usuario=UUID("00000000-0000-0000-0000-000000000000")
         )
         
-    # 2. Validar usuarios normales en BD
-    usuario = db.query(Usuario).filter(Usuario.email == form_data.username.lower()).first()
-    if not usuario:
+    # 2. Validar usuarios normales en BD (1 solo roundtrip con JOIN)
+    row = db.query(Usuario, Entrenador, Alumno).outerjoin(
+        Entrenador, Entrenador.id_usuario == Usuario.id_usuario
+    ).outerjoin(
+        Alumno, Alumno.id_usuario == Usuario.id_usuario
+    ).filter(
+        Usuario.email == form_data.username.lower()
+    ).first()
+
+    if not row:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Correo electrónico o contraseña incorrectos",
             headers={"WWW-Authenticate": "Bearer"},
         )
-        
-    # Validar password asincrónicamente para no bloquear el event loop
-    is_password_valid = await asyncio.to_thread(verificar_password, form_data.password, usuario.password_hash)
-    if not is_password_valid:
+
+    usuario, entrenador, alumno = row
+
+    if not verificar_password(form_data.password, usuario.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Correo electrónico o contraseña incorrectos",
@@ -300,7 +306,6 @@ async def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends
 
     # Verificar si es entrenador y está suspendido o eliminado
     if usuario.rol == "entrenador":
-        entrenador = db.query(Entrenador).filter(Entrenador.id_usuario == usuario.id_usuario).first()
         if entrenador:
             if not entrenador.estado_activo:
                 raise HTTPException(
@@ -313,7 +318,6 @@ async def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends
                     detail="Tu cuenta está suspendida porque todavía no se ha dado de alta o por falta de pago."
                 )
     elif usuario.rol == "alumno":
-        alumno = db.query(Alumno).filter(Alumno.id_usuario == usuario.id_usuario).first()
         if alumno:
             requiere_tutor = bool(alumno.requiere_autorizacion_tutor)
             tutor_completado = bool(alumno.autorizacion_tutor_completada)

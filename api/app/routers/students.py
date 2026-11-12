@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import func, text
 from typing import List, Optional
@@ -9,7 +9,7 @@ from datetime import datetime
 from app import models, schemas
 from app.database import get_db
 from app.models import Usuario, Alumno
-from app.schemas import AlumnoOut, AlumnoUpdate
+from app.schemas import AlumnoOut, AlumnoListOut, AlumnoUpdate
 from app.utils.auth import get_current_user
 
 router = APIRouter(
@@ -17,7 +17,7 @@ router = APIRouter(
     tags=["alumnos del entrenador"]
 )
 
-@router.get("", response_model=List[AlumnoOut])
+@router.get("", response_model=List[AlumnoListOut])
 def get_my_students(
     current_user: Usuario = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -31,10 +31,12 @@ def get_my_students(
             detail="Acceso exclusivo para entrenadores."
         )
         
-    # Optimizado: Un solo viaje a la base de datos usando LEFT OUTER JOIN
+    # Optimizado: Un solo viaje a la base de datos usando LEFT OUTER JOIN + joinedload(Alumno.usuario)
     resultados = db.query(
         Alumno,
         models.Rutina.nombre_rutina
+    ).options(
+        joinedload(Alumno.usuario)
     ).outerjoin(
         models.Rutina, Alumno.id_rutina_activa == models.Rutina.id_rutina
     ).filter(

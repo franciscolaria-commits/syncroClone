@@ -1,9 +1,18 @@
 import React, { useState } from "react";
 import { CheckCircle2, Dumbbell, Star, ChevronRight, WifiOff, TrendingUp, Menu, X } from "lucide-react";
 
-export default function LandingPage() {
+export default function LandingPage({ onNavigateLogin }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const WHATSAPP_LINK = "https://wa.me/5492644517903?text=Hola,%20quiero%20activar%20el%20periodo%20de%20prueba%20para%20mi%20gimnasio/entrenamiento.";
+
+  const handleGoToLogin = () => {
+    setIsMobileMenuOpen(false);
+    if (onNavigateLogin) {
+      onNavigateLogin();
+    } else {
+      window.location.href = '/login';
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#050505] text-white font-sans selection:bg-emerald-500/30 overflow-x-hidden">
@@ -41,7 +50,7 @@ export default function LandingPage() {
 
             <div className="hidden md:flex items-center gap-6">
               <button 
-                onClick={() => window.location.href = '/login'}
+                onClick={handleGoToLogin}
                 className="text-sm font-medium text-white/70 hover:text-emerald-400 transition-all duration-300 hover:scale-105 cursor-pointer"
               >
                 Iniciar Sesión / Registrarse
@@ -67,7 +76,7 @@ export default function LandingPage() {
             <div className="md:hidden absolute top-full left-0 w-full px-6 mt-2 z-50">
               <div className="bg-gray-900/95 backdrop-blur-xl border border-emerald-500/20 rounded-2xl p-4 flex flex-col gap-4 shadow-xl">
                 <button 
-                  onClick={() => window.location.href = '/login'}
+                  onClick={handleGoToLogin}
                   className="w-full text-center py-3 text-sm font-bold text-white hover:bg-white/5 rounded-xl transition-colors border border-white/10"
                 >
                   Iniciar Sesión / Registrarse
