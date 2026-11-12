@@ -2,13 +2,21 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, logout } from '../services/api.js';
 import { useModal } from '../components/ModalProvider.jsx';
-import WorkoutBuilder from './WorkoutBuilder.jsx';
-import StudentProgress from './StudentProgress.jsx';
-import FinancesPanel from '../components/FinancesPanel.jsx';
-import TutorialPanel from '../components/TutorialPanel.jsx';
-import ImportRoutineModal from '../components/ImportRoutineModal.jsx';
-import GymConfigPanel from '../components/GymConfigPanel.jsx';
+import { markDashboardMounted, markBootstrapStart, markBootstrapDone, logBgPrefetch } from '../utils/perfTracker.js';
 import { Menu, X, Copy, Download, ChevronDown, ChevronUp, AlertTriangle, ShieldAlert, Loader2 } from "lucide-react";
+
+const WorkoutBuilder = React.lazy(() => import('./WorkoutBuilder.jsx'));
+const StudentProgress = React.lazy(() => import('./StudentProgress.jsx'));
+const FinancesPanel = React.lazy(() => import('../components/FinancesPanel.jsx'));
+const TutorialPanel = React.lazy(() => import('../components/TutorialPanel.jsx'));
+const ImportRoutineModal = React.lazy(() => import('../components/ImportRoutineModal.jsx'));
+const GymConfigPanel = React.lazy(() => import('../components/GymConfigPanel.jsx'));
+
+const ModuleLoader = () => (
+  <div className="p-8 text-center text-xs text-zinc-400 font-semibold uppercase tracking-widest animate-pulse">
+    Cargando módulo...
+  </div>
+);
 
 export default function CoachDashboard() {
   const [activePanel, setActivePanel] = useState('students');
@@ -29,10 +37,12 @@ export default function CoachDashboard() {
   const bootstrapQuery = useQuery({
     queryKey: ['coachBootstrap'],
     queryFn: async () => {
+      markBootstrapStart();
       const data = await api.get('/api/v1/coaches/bootstrap');
       queryClient.setQueryData(['coachProfile'], data.profile);
       queryClient.setQueryData(['gymConfig'], data.gym_config);
       queryClient.setQueryData(['students'], data.students);
+      markBootstrapDone(data.students?.length || 0);
       return data;
     },
   });
@@ -128,12 +138,42 @@ export default function CoachDashboard() {
   };
 
   useEffect(() => {
+    markDashboardMounted();
     const userRaw = localStorage.getItem("fitness_user");
     if (userRaw) {
       const user = JSON.parse(userRaw);
       setEmail(user.email);
     }
   }, []);
+
+  // Carga escalonada en segundo plano: primero Alumnos (bootstrap), luego Rutinas y al final Ejercicios
+  const bgPrefetchedRef = useRef(false);
+  useEffect(() => {
+    if (!bootstrapQuery.isSuccess || bgPrefetchedRef.current) return;
+    bgPrefetchedRef.current = true;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const t1 = performance.now();
+        await queryClient.prefetchQuery({
+          queryKey: ['routines'],
+          queryFn: () => api.get('/api/v1/routines'),
+        });
+        if (!cancelled) logBgPrefetch('routines', performance.now() - t1);
+
+        const t2 = performance.now();
+        await queryClient.prefetchQuery({
+          queryKey: ['exercises'],
+          queryFn: () => api.get('/api/v1/exercises'),
+        });
+        if (!cancelled) logBgPrefetch('exercises', performance.now() - t2);
+      } catch (e) {}
+    }, 120);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [bootstrapQuery.isSuccess, queryClient]);
 
   
   const handleResolveAudit = async (id, action) => {
@@ -545,7 +585,9 @@ export default function CoachDashboard() {
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
                 Volver a Mis Alumnos
               </button>
-              <StudentProgress studentId={selectedStudentId} />
+              <React.Suspense fallback={<ModuleLoader />}>
+                <StudentProgress studentId={selectedStudentId} />
+              </React.Suspense>
             </div>
           ) : (
           <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -1093,11 +1135,15 @@ export default function CoachDashboard() {
         )}
 
         {activePanel === 'finances' && (
-          <FinancesPanel students={students} api={api} loadStudents={() => queryClient.invalidateQueries({ queryKey: ['students'] })} modal={modal} profile={profile} gymConfig={gymConfig} />
+          <React.Suspense fallback={<ModuleLoader />}>
+            <FinancesPanel students={students} api={api} loadStudents={() => queryClient.invalidateQueries({ queryKey: ['students'] })} modal={modal} profile={profile} gymConfig={gymConfig} />
+          </React.Suspense>
         )}
 
         {activePanel === 'tutorial' && (
-          <TutorialPanel />
+          <React.Suspense fallback={<ModuleLoader />}>
+            <TutorialPanel />
+          </React.Suspense>
         )}
 
         {activePanel === 'profile' && (
@@ -1261,7 +1307,9 @@ export default function CoachDashboard() {
             </form>
 
             <div className="border-t border-zinc-800 my-4" />
-            <GymConfigPanel />
+            <React.Suspense fallback={<ModuleLoader />}>
+              <GymConfigPanel />
+            </React.Suspense>
 
             {/* ZONA PELIGROSA: CANCELACIÓN DE SUSCRIPCIÓN */}
             <div className="border-t border-zinc-800/80 my-2" />
@@ -1299,18 +1347,22 @@ export default function CoachDashboard() {
       </div>
 
       {isBuildingRoutine && (
-        <WorkoutBuilder 
-          initialData={editingRoutine}
-          onClose={() => { setIsBuildingRoutine(false); setEditingRoutine(null); }} 
-          onSaveSuccess={() => { setIsBuildingRoutine(false); setEditingRoutine(null); queryClient.invalidateQueries({ queryKey: ['routines'] }); }} 
-        />
+        <React.Suspense fallback={<ModuleLoader />}>
+          <WorkoutBuilder 
+            initialData={editingRoutine}
+            onClose={() => { setIsBuildingRoutine(false); setEditingRoutine(null); }} 
+            onSaveSuccess={() => { setIsBuildingRoutine(false); setEditingRoutine(null); queryClient.invalidateQueries({ queryKey: ['routines'] }); }} 
+          />
+        </React.Suspense>
       )}
       {/* Import Routine Modal */}
       {showImportModal && (
-        <ImportRoutineModal
-          students={students}
-          onClose={() => setShowImportModal(false)}
-        />
+        <React.Suspense fallback={<ModuleLoader />}>
+          <ImportRoutineModal
+            students={students}
+            onClose={() => setShowImportModal(false)}
+          />
+        </React.Suspense>
       )}
 
       {/* Modal Confirmación de Cancelación de Suscripción */}

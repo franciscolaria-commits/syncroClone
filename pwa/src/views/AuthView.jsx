@@ -5,6 +5,15 @@ import { del } from 'idb-keyval';
 import { api } from '../services/api.js';
 import { useModal } from '../components/ModalProvider.jsx';
 import { Eye, EyeOff } from 'lucide-react';
+import { markLoginStart, markLoginApiDone } from '../utils/perfTracker.js';
+
+let dashboardsPreloaded = false;
+function preloadDashboards() {
+  if (dashboardsPreloaded) return;
+  dashboardsPreloaded = true;
+  import('./CoachDashboard.jsx').catch(() => {});
+  import('./StudentDashboard.jsx').catch(() => {});
+}
 
 export default function AuthView({ onLoginSuccess }) {
   const queryClient = useQueryClient();
@@ -58,12 +67,15 @@ export default function AuthView({ onLoginSuccess }) {
     const email = e.target['login-email'].value;
     const password = e.target['login-password'].value;
     setLoadingAction('login');
+    preloadDashboards();
+    markLoginStart();
     try {
       const formData = new FormData();
       formData.append("username", email);
       formData.append("password", password);
 
       const data = await api.post("/api/v1/auth/login", formData);
+      markLoginApiDone();
       localStorage.setItem("fitness_jwt", data.access_token);
       const userData = {
         email: data.email,
@@ -203,7 +215,7 @@ export default function AuthView({ onLoginSuccess }) {
       {activePanel === 'login' && (
         <div className="glass-card rounded-2xl p-6 shadow-xl flex flex-col gap-4">
           <h2 className="text-lg font-bold text-zinc-100">Iniciar Sesión</h2>
-          <form onSubmit={handleLogin} className="flex flex-col gap-3">
+          <form onSubmit={handleLogin} onFocus={preloadDashboards} className="flex flex-col gap-3">
             <div>
               <label className="text-xs text-zinc-400 font-semibold block mb-1">Email</label>
               <input type="email" id="login-email" required placeholder="entrenador@correo.com o alumno@correo.com" className="w-full border rounded-xl px-4 py-3 text-sm text-zinc-200" />

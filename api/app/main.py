@@ -1,8 +1,10 @@
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from sqlalchemy import text
+from sqlalchemy import text, event
 import os
+import time
+import contextvars
 import sentry_sdk
 
 from app.database import get_db, engine
@@ -101,6 +103,38 @@ if sentry_dsn:
 
 app = FastAPI(title="Fitness Platform API")
 
+_req_metrics_var: contextvars.ContextVar = contextvars.ContextVar("_req_metrics", default=None)
+
+@event.listens_for(engine, "before_cursor_execute")
+def _before_cursor_execute(conn, cursor, statement, parameters, context, executemany):
+    conn.info.setdefault("_query_start_time", []).append(time.perf_counter())
+
+@event.listens_for(engine, "after_cursor_execute")
+def _after_cursor_execute(conn, cursor, statement, parameters, context, executemany):
+    starts = conn.info.get("_query_start_time")
+    if starts:
+        elapsed_ms = (time.perf_counter() - starts.pop()) * 1000.0
+        metrics = _req_metrics_var.get()
+        if metrics is not None:
+            metrics["db_ms"] += elapsed_ms
+            metrics["queries"] += 1
+
+@app.middleware("http")
+async def server_timing_middleware(request: Request, call_next):
+    metrics = {"db_ms": 0.0, "queries": 0}
+    token = _req_metrics_var.set(metrics)
+    t0 = time.perf_counter()
+    try:
+        response = await call_next(request)
+    finally:
+        _req_metrics_var.reset(token)
+    app_ms = (time.perf_counter() - t0) * 1000.0
+    response.headers["Server-Timing"] = (
+        f'db;dur={metrics["db_ms"]:.1f};desc="queries={metrics["queries"]}", '
+        f'app;dur={app_ms:.1f}'
+    )
+    return response
+
 # Middleware Guardián de Consentimiento Parental
 @app.middleware("http")
 async def parental_consent_guardian_middleware(request: Request, call_next):
@@ -166,6 +200,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Server-Timing"],
 )
 
 # Registrar routers
