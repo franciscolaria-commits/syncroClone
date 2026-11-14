@@ -79,20 +79,37 @@ export default function WorkoutBuilder({ initialData, onClose, onSaveSuccess }) 
   };
 
   const handleSave = async () => {
+    const trimmedName = (routineName || '').trim();
+    if (!trimmedName) {
+      await modal.alert("Por favor ingresa un nombre para la rutina.");
+      return;
+    }
+
+    if (!days || days.length === 0) {
+      await modal.alert("Debes agregar al menos un día a la rutina.");
+      return;
+    }
+
+    const totalExercises = days.reduce((acc, d) => acc + (d.exercises ? d.exercises.length : 0), 0);
+    if (totalExercises === 0) {
+      await modal.alert("Por favor agrega al menos un ejercicio a la rutina antes de guardar.");
+      return;
+    }
+
     try {
       setLoading(true);
       // Preparar payload para la API (Schemas: RutinaCreate, RutinaDiaCreate, RutinaEjercicioCreate)
       const payload = {
-        nombre_rutina: routineName,
-        frecuencia_semanal: parseInt(frecuenciaSemanal),
+        nombre_rutina: trimmedName,
+        frecuencia_semanal: parseInt(frecuenciaSemanal) || 3,
         dias: days.map((day, dIndex) => ({
-          nombre_dia: day.name,
+          nombre_dia: (day.name || '').trim() || `Día ${dIndex + 1}`,
           orden: dIndex + 1,
-          ejercicios: day.exercises.map((ex, exIndex) => ({
+          ejercicios: (day.exercises || []).map((ex, exIndex) => ({
             id_ejercicio: ex.id_ejercicio,
-            series_esperadas: parseInt(ex.series_esperadas),
-            reps_esperadas: parseInt(ex.reps_esperadas),
-            descanso_segundos: ex.descanso_segundos ? parseInt(ex.descanso_segundos) : null,
+            series_esperadas: parseInt(ex.series_esperadas) || 1,
+            reps_esperadas: parseInt(ex.reps_esperadas) || 1,
+            descanso_segundos: ex.descanso_segundos ? (parseInt(ex.descanso_segundos) || 0) : null,
             nota_entrenador: ex.nota_entrenador || null,
             orden: exIndex + 1
           }))

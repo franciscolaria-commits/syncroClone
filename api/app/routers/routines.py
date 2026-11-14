@@ -22,6 +22,17 @@ def create_routine(
     if current_user.rol != "entrenador":
         raise HTTPException(status_code=403, detail="Sólo los entrenadores pueden crear rutinas")
 
+    # Asegurar que el entrenador exista en la tabla entrenadores para evitar violaciones de clave foránea
+    entrenador_rec = db.query(models.Entrenador).filter(models.Entrenador.id_usuario == current_user.id_usuario).first()
+    if not entrenador_rec:
+        entrenador_rec = models.Entrenador(
+            id_usuario=current_user.id_usuario,
+            estado_financiero="activo",
+            estado_activo=True
+        )
+        db.add(entrenador_rec)
+        db.flush()
+
     try:
         # 1. Crear Rutina Principal
         new_rutina_id = uuid4()
@@ -69,13 +80,25 @@ def create_routine(
                 
         # Commit de toda la jerarquía de forma transaccional
         db.commit()
-        db.refresh(new_rutina)
-        return new_rutina
+
+        # Cargar con eager loading para serializar de forma segura sin N+1 lazy loading
+        created = db.query(models.Rutina).options(
+            selectinload(models.Rutina.dias)
+            .selectinload(models.RutinaDia.ejercicios)
+            .selectinload(models.RutinaEjercicio.ejercicio)
+        ).filter(models.Rutina.id_rutina == new_rutina_id).first()
+
+        return created or new_rutina
 
     except SQLAlchemyError as e:
         db.rollback()
-        print(f"ERROR INTERNO (Crear Rutina): {str(e)}")
-        raise HTTPException(status_code=500, detail="Ocurrió un error interno en el servidor.")
+        err_msg = str(e.orig) if hasattr(e, 'orig') and e.orig else str(e)
+        print(f"ERROR INTERNO (Crear Rutina): {err_msg}")
+        raise HTTPException(status_code=500, detail=f"Error en base de datos al guardar rutina: {err_msg}")
+    except Exception as e:
+        db.rollback()
+        print(f"ERROR INESPERADO (Crear Rutina): {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error inesperado al guardar rutina: {str(e)}")
 
 from uuid import UUID
 
@@ -154,13 +177,25 @@ def update_routine(
         ).update({"id_rutina_activa": new_rutina_id}, synchronize_session=False)
 
         db.commit()
-        db.refresh(new_rutina)
-        return new_rutina
+
+        # Cargar con eager loading para serializar de forma segura sin N+1 lazy loading
+        updated = db.query(models.Rutina).options(
+            selectinload(models.Rutina.dias)
+            .selectinload(models.RutinaDia.ejercicios)
+            .selectinload(models.RutinaEjercicio.ejercicio)
+        ).filter(models.Rutina.id_rutina == new_rutina_id).first()
+
+        return updated or new_rutina
 
     except SQLAlchemyError as e:
         db.rollback()
-        print(f"ERROR INTERNO (Actualizar Rutina): {str(e)}")
-        raise HTTPException(status_code=500, detail="Ocurrió un error interno en el servidor.")
+        err_msg = str(e.orig) if hasattr(e, 'orig') and e.orig else str(e)
+        print(f"ERROR INTERNO (Actualizar Rutina): {err_msg}")
+        raise HTTPException(status_code=500, detail=f"Error en base de datos al actualizar rutina: {err_msg}")
+    except Exception as e:
+        db.rollback()
+        print(f"ERROR INESPERADO (Actualizar Rutina): {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error inesperado al actualizar rutina: {str(e)}")
 
 @router.post("/{id_rutina}/duplicate", response_model=schemas.RutinaOut)
 def duplicate_routine(
