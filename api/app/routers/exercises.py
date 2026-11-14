@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
-from typing import List, Optional
+from typing import List, Optional, Dict, Tuple
 from uuid import UUID
+import time
 
 from app.database import get_db
 from app.models import Usuario, Ejercicio, EjercicioMediaCoach
@@ -15,6 +16,30 @@ router = APIRouter(
     tags=["catálogo de ejercicios"]
 )
 
+# Cache en memoria con TTL para evitar queries repetitivas del catálogo maestro
+_exercises_cache: Dict[str, Tuple[float, List[dict]]] = {}
+CACHE_TTL_SECONDS = 300  # 5 minutos
+
+def get_cached_exercises(coach_id: Optional[UUID]) -> Optional[List[dict]]:
+    key = str(coach_id) if coach_id else "global"
+    if key in _exercises_cache:
+        ts, data = _exercises_cache[key]
+        if time.time() - ts < CACHE_TTL_SECONDS:
+            return data
+        else:
+            del _exercises_cache[key]
+    return None
+
+def set_cached_exercises(coach_id: Optional[UUID], data: List[dict]):
+    key = str(coach_id) if coach_id else "global"
+    _exercises_cache[key] = (time.time(), data)
+
+def invalidate_exercise_cache(coach_id: Optional[UUID] = None):
+    if coach_id:
+        _exercises_cache.pop(str(coach_id), None)
+    else:
+        _exercises_cache.clear()
+
 @router.get("", response_model=List[EjercicioOut])
 def get_exercises(
     current_user: Usuario = Depends(get_current_user),
@@ -24,6 +49,7 @@ def get_exercises(
     Obtiene el catálogo maestro de ejercicios.
     Retorna tanto los ejercicios globales del sistema (id_entrenador es NULL)
     como los ejercicios personalizados creados por el entrenador autenticado.
+    Implementa caché en memoria con invalidación automática en mutaciones.
     """
     # Determinar qué id_entrenador buscar para overrides
     id_entrenador_target = None
@@ -44,6 +70,11 @@ def get_exercises(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Rol de usuario inválido."
         )
+
+    # Verificar si está en caché en memoria
+    cached = get_cached_exercises(id_entrenador_target)
+    if cached is not None:
+        return cached
 
     # Buscar ejercicios globales y del entrenador
     ejercicios = db.query(Ejercicio).filter(
@@ -78,6 +109,7 @@ def get_exercises(
         }
         result.append(ex_dict)
         
+    set_cached_exercises(id_entrenador_target, result)
     return result
 
 @router.post("/custom", response_model=EjercicioOut, status_code=status.HTTP_201_CREATED)
@@ -110,6 +142,7 @@ def create_custom_exercise(
         db.add(nuevo_ejercicio)
         db.commit()
         db.refresh(nuevo_ejercicio)
+        invalidate_exercise_cache(current_user.id_usuario)
         return nuevo_ejercicio
     except Exception as e:
         db.rollback()
@@ -153,6 +186,7 @@ def override_exercise_media(
             )
             db.add(override)
         db.commit()
+        invalidate_exercise_cache(current_user.id_usuario)
         return {"message": "Media actualizada correctamente"}
     except Exception as e:
         db.rollback()
@@ -193,6 +227,7 @@ def update_custom_exercise(
         
     db.commit()
     db.refresh(ejercicio)
+    invalidate_exercise_cache(current_user.id_usuario)
     return ejercicio
 
 @router.delete("/{ejercicio_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -214,6 +249,7 @@ def delete_custom_exercise(
     try:
         db.delete(ejercicio)
         db.commit()
+        invalidate_exercise_cache(current_user.id_usuario)
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail="No se pudo eliminar el ejercicio. Es posible que esté en uso en alguna rutina.")

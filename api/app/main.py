@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import text, event
 import os
@@ -58,7 +59,13 @@ try:
         conn.execute(text("ALTER TABLE entrenadores ADD COLUMN IF NOT EXISTS fecha_cancelacion TIMESTAMP"))
         conn.execute(text("ALTER TABLE entrenadores ADD COLUMN IF NOT EXISTS prorroga_dias INTEGER DEFAULT 0"))
         conn.execute(text("ALTER TABLE entrenadores ADD COLUMN IF NOT EXISTS fecha_fin_prorroga TIMESTAMP"))
-        print("Manual DDL (columnas) aplicadas con éxito.")
+        # Índices compuestos de alto rendimiento (Fase 2)
+        conn.execute(text("CREATE INDEX IF NOT EXISTS idx_log_ligas_alumno_validacion ON log_ligas_alumnos (id_alumno, estado_validacion)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS idx_alumnos_entrenador_activo ON alumnos (id_entrenador, estado_activo)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS idx_pagos_alumnos_alumno_mes ON pagos_alumnos (id_alumno, anio_mes)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS idx_ejercicios_entrenador ON ejercicios (id_entrenador)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS idx_rutinas_entrenador ON rutinas (id_entrenador)"))
+        print("Manual DDL (columnas e índices) aplicadas con éxito.")
 except Exception as e:
     print(f"Error aplicando manual DDL: {e}")
 
@@ -92,13 +99,8 @@ sentry_dsn = os.getenv("SENTRY_DSN", "")
 if sentry_dsn:
     sentry_sdk.init(
         dsn=sentry_dsn,
-        # Set traces_sample_rate to 1.0 to capture 100%
-        # of transactions for performance monitoring.
-        traces_sample_rate=1.0,
-        # Set profiles_sample_rate to 1.0 to profile 100%
-        # of sampled transactions.
-        # We recommend adjusting this value in production.
-        profiles_sample_rate=1.0,
+        traces_sample_rate=0.2,
+        profiles_sample_rate=0.1,
     )
 
 app = FastAPI(title="Fitness Platform API")
@@ -192,6 +194,9 @@ allowed_origins += ["http://localhost:5173", "http://localhost:3000"]
 
 # Deduplicate
 allowed_origins = list(dict.fromkeys(allowed_origins))
+
+# Compresión HTTP con GZip para reducir payloads (>1KB) en red transcontinental (ej: Argentina -> Oregon)
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # Configurar middleware CORS para comunicación cruzada (Frontend PWA a Backend API)
 app.add_middleware(
