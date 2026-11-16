@@ -45,7 +45,6 @@ export default function LandingPage({ onNavigateLogin }) {
             <div className="hidden md:flex items-center gap-8 text-sm font-medium text-white/60">
               <a href="#" className="hover:text-white transition-colors cursor-pointer">Inicio</a>
               <a href="#features" className="hover:text-white transition-colors cursor-pointer">Funciones</a>
-              <a href="#pricing" className="hover:text-white transition-colors cursor-pointer">Precios</a>
             </div>
 
             <div className="hidden md:flex items-center gap-6">
@@ -274,100 +273,6 @@ export default function LandingPage({ onNavigateLogin }) {
         </div>
       </section>
 
-      {/* Pricing Section (Integrado con el estilo oscuro) */}
-      <section id="pricing" className="relative z-10 py-24 bg-[#080808] border-t border-white/5">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Planes diseñados para escalar</h2>
-            <p className="text-white/40">Comienza gratis. Paga solo cuando tu negocio crezca.</p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            {/* Plan 1 */}
-            <a 
-              href={WHATSAPP_LINK} 
-              className="bg-[#111111] rounded-2xl p-8 border border-white/5 hover:border-emerald-500/30 transition-all hover:-translate-y-1 group relative overflow-hidden flex flex-col cursor-pointer"
-            >
-              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl group-hover:bg-emerald-500/20 transition-all"></div>
-              <h3 className="text-lg font-medium text-white/70 mb-2">Plan Inicial</h3>
-              <div className="flex items-baseline gap-2 mb-8">
-                <span className="text-4xl font-bold text-white">$1.500</span>
-                <span className="text-white/40 text-sm">ARS / mes</span>
-              </div>
-              <ul className="space-y-4 mb-8 flex-1 text-sm text-white/60">
-                <li className="flex items-center gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
-                  <span className="text-base text-white">Hasta <strong>1 alumno</strong></span>
-                </li>
-                <li className="flex items-center gap-3 opacity-60">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
-                  <span>Acceso total a todas las funciones</span>
-                </li>
-              </ul>
-              <div className="w-full py-3 bg-white/5 group-hover:bg-emerald-500/20 border border-white/10 group-hover:border-emerald-500/30 text-white text-center rounded-lg transition-colors text-sm font-medium">
-                Elegir Inicial
-              </div>
-            </a>
-
-            {/* Plan 2 */}
-            <a 
-              href={WHATSAPP_LINK} 
-              className="bg-[#161616] rounded-2xl p-8 border border-emerald-500/30 relative flex flex-col shadow-2xl shadow-emerald-900/10 md:-translate-y-4 hover:-translate-y-6 transition-all group cursor-pointer"
-            >
-              <div className="absolute inset-0 rounded-2xl overflow-hidden pointer-events-none">
-                <div className="absolute top-0 right-0 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl group-hover:bg-emerald-500/30 transition-all"></div>
-              </div>
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-emerald-500 text-black px-3 py-1 rounded-full text-xs font-bold tracking-wide uppercase z-10">
-                Más Popular
-              </div>
-              <h3 className="text-lg font-medium text-emerald-400 mb-2 relative z-10">Plan Pro</h3>
-              <div className="flex items-baseline gap-2 mb-8 relative z-10">
-                <span className="text-4xl font-bold text-white">$12.000</span>
-                <span className="text-white/40 text-sm">ARS / mes</span>
-              </div>
-              <ul className="space-y-4 mb-8 flex-1 text-sm text-white/60 relative z-10">
-                <li className="flex items-center gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
-                  <span className="text-base text-white">Hasta <strong>10 alumnos</strong></span>
-                </li>
-                <li className="flex items-center gap-3 opacity-60">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
-                  <span>Acceso total a todas las funciones</span>
-                </li>
-              </ul>
-              <div className="w-full py-3 bg-emerald-500 group-hover:bg-emerald-400 text-black text-center font-bold rounded-lg transition-colors text-sm relative z-10 shadow-lg shadow-emerald-500/20">
-                Elegir Pro
-              </div>
-            </a>
-
-            {/* Plan 3 */}
-            <a 
-              href={WHATSAPP_LINK} 
-              className="bg-[#111111] rounded-2xl p-8 border border-white/5 hover:border-emerald-500/30 transition-all hover:-translate-y-1 group relative overflow-hidden flex flex-col cursor-pointer"
-            >
-              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl group-hover:bg-emerald-500/20 transition-all"></div>
-              <h3 className="text-lg font-medium text-white/70 mb-2">Plan Premium</h3>
-              <div className="flex items-baseline gap-2 mb-8">
-                <span className="text-4xl font-bold text-white">$50.000</span>
-                <span className="text-white/40 text-sm">ARS / mes</span>
-              </div>
-              <ul className="space-y-4 mb-8 flex-1 text-sm text-white/60">
-                <li className="flex items-center gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
-                  <span className="text-base text-white">Hasta <strong>50 alumnos</strong></span>
-                </li>
-                <li className="flex items-center gap-3 opacity-60">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
-                  <span>Acceso total a todas las funciones</span>
-                </li>
-              </ul>
-              <div className="w-full py-3 bg-white/5 group-hover:bg-emerald-500/20 border border-white/10 group-hover:border-emerald-500/30 text-white text-center rounded-lg transition-colors text-sm font-medium">
-                Elegir Premium
-              </div>
-            </a>
-          </div>
-        </div>
-      </section>
 
       {/* Footer Minimalista */}
       <footer className="border-t border-white/5 py-12 text-center text-white/30 text-sm bg-[#050505]">
