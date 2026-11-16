@@ -112,7 +112,7 @@ export default function LandingPage({ onNavigateLogin }) {
           onClick={() => window.location.href = WHATSAPP_LINK}
           className="bg-white hover:bg-gray-200 text-black px-8 py-4 rounded-xl text-base font-semibold transition-all shadow-[0_0_40px_rgba(255,255,255,0.1)] hover:shadow-[0_0_60px_rgba(255,255,255,0.2)] cursor-pointer"
         >
-          Probá gratis por 30 días
+          Probá gratis por 14 días
         </button>
 
         {/* Social Proof */}
