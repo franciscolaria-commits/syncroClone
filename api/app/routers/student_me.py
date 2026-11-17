@@ -274,6 +274,33 @@ def get_my_stats(db: Session = Depends(get_db), current_user: models.Usuario = D
         if nombre_ej not in rep_maxes:
             rep_maxes[nombre_ej] = {}
         rep_maxes[nombre_ej][rango] = peso
+        # Mapeo a etiquetas exactas esperadas por el frontend ('1RM', '5RM', '8RM', '10RM')
+        if rango == "1-5":
+            rep_maxes[nombre_ej].setdefault("1RM", peso)
+            rep_maxes[nombre_ej].setdefault("5RM", peso)
+        elif rango == "6-10":
+            rep_maxes[nombre_ej].setdefault("8RM", peso)
+            rep_maxes[nombre_ej].setdefault("10RM", peso)
+
+    # Incorporar RMs de evaluaciones físicas si están disponibles
+    evals = db.query(models.EvaluacionFisica).filter(
+        models.EvaluacionFisica.id_alumno == current_user.id_usuario
+    ).order_by(models.EvaluacionFisica.fecha.desc()).all()
+
+    for ev in evals:
+        eval_mapping = [
+            ("Sentadilla", ev.rm_sentadilla, ev.rm3_sentadilla),
+            ("Press Banca", ev.rm_banco, ev.rm3_banco),
+            ("Peso Muerto", ev.rm_peso_muerto, ev.rm3_peso_muerto),
+        ]
+        for name, rm1, rm3 in eval_mapping:
+            if rm1 or rm3:
+                rep_maxes.setdefault(name, {})
+                if rm1 and "1RM" not in rep_maxes[name]:
+                    rep_maxes[name]["1RM"] = float(rm1)
+                    rep_maxes[name].setdefault("1-5", float(rm1))
+                if rm3 and "5RM" not in rep_maxes[name]:
+                    rep_maxes[name]["5RM"] = float(rm3)
 
     return {
         "total_sessions": total_sessions,
@@ -363,11 +390,32 @@ def get_my_league(db: Session = Depends(get_db), current_user: models.Usuario = 
         "Press Militar": "Press Militar",
         "Dominadas": "Dominadas"
     }
+
+    # Cargar evaluaciones físicas como fallback de 1RM si no hay sesiones entrenadas
+    evals = db.query(models.EvaluacionFisica).filter(
+        models.EvaluacionFisica.id_alumno == current_user.id_usuario
+    ).order_by(models.EvaluacionFisica.fecha.desc()).all()
+
+    eval_fallbacks = {}
+    for ev in evals:
+        if "Press Banca" not in eval_fallbacks:
+            if ev.rm_banco: eval_fallbacks["Press Banca"] = float(ev.rm_banco)
+            elif ev.rm3_banco: eval_fallbacks["Press Banca"] = round(float(ev.rm3_banco) * 1.08, 2)
+
+        if "Sentadilla" not in eval_fallbacks:
+            if ev.rm_sentadilla: eval_fallbacks["Sentadilla"] = float(ev.rm_sentadilla)
+            elif ev.rm3_sentadilla: eval_fallbacks["Sentadilla"] = round(float(ev.rm3_sentadilla) * 1.08, 2)
+
+        if "Peso Muerto" not in eval_fallbacks:
+            if ev.rm_peso_muerto: eval_fallbacks["Peso Muerto"] = float(ev.rm_peso_muerto)
+            elif ev.rm3_peso_muerto: eval_fallbacks["Peso Muerto"] = round(float(ev.rm3_peso_muerto) * 1.08, 2)
     
     result = []
     
     for pilar, nombre_largo in MAPEO_PILARES.items():
-        ejercicio = db.query(models.Ejercicio).filter(models.Ejercicio.nombre == nombre_largo).first()
+        ejercicio = db.query(models.Ejercicio).filter(
+            (models.Ejercicio.nombre == nombre_largo) | (models.Ejercicio.nombre.ilike(nombre_largo))
+        ).first()
         if not ejercicio: continue
             
         historial = db.query(models.HistorialEjercicioAlumno).filter(
@@ -375,7 +423,10 @@ def get_my_league(db: Session = Depends(get_db), current_user: models.Usuario = 
             models.HistorialEjercicioAlumno.id_ejercicio == ejercicio.id_ejercicio
         ).first()
         
-        e1rm_actual = historial.last_e1rm if historial else 0.0
+        e1rm_actual = float(historial.last_e1rm) if historial and historial.last_e1rm else 0.0
+        if e1rm_actual == 0.0 and pilar in eval_fallbacks:
+            e1rm_actual = eval_fallbacks[pilar]
+
         multiplicador_actual = e1rm_actual / peso_corporal if peso_corporal > 0 else 0.0
         
         # Buscar el umbral alcanzado
@@ -423,6 +474,142 @@ def get_my_league(db: Session = Depends(get_db), current_user: models.Usuario = 
         })
         
     return result
+
+@router.get("/me/progress_chart")
+def get_my_progress_chart(
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(get_current_user)
+):
+    """Devuelve los datos del gráfico de progreso para el alumno actual."""
+    if current_user.rol != "alumno":
+        raise HTTPException(status_code=403, detail="Sólo alumnos")
+
+    from sqlalchemy import text
+    query = text("""
+        SELECT ejercicio_nombre, fecha, max_e1rm, max_peso
+        FROM mv_student_progress_chart
+        WHERE id_alumno = :id_alumno
+        ORDER BY fecha ASC
+    """)
+    result = db.execute(query, {"id_alumno": current_user.id_usuario}).fetchall()
+    chart_list = [
+        {
+            "ejercicio_nombre": row.ejercicio_nombre,
+            "fecha": row.fecha.isoformat() if hasattr(row.fecha, 'isoformat') else str(row.fecha),
+            "max_e1rm": round(float(row.max_e1rm), 2),
+            "max_peso": round(float(row.max_peso), 2)
+        } for row in result
+    ]
+
+    # Complementar con datos de evaluaciones físicas si existen
+    evals = db.query(models.EvaluacionFisica).filter(
+        models.EvaluacionFisica.id_alumno == current_user.id_usuario
+    ).order_by(models.EvaluacionFisica.fecha.asc()).all()
+
+    existing_points = {(p["ejercicio_nombre"], p["fecha"][:10]) for p in chart_list}
+    for ev in evals:
+        f_str = ev.fecha.strftime("%Y-%m-%d") if ev.fecha else ""
+        if not f_str:
+            continue
+        if ev.rm_sentadilla and ("Sentadilla", f_str) not in existing_points:
+            chart_list.append({
+                "ejercicio_nombre": "Sentadilla",
+                "fecha": f_str,
+                "max_e1rm": round(float(ev.rm_sentadilla), 2),
+                "max_peso": round(float(ev.rm_sentadilla), 2)
+            })
+        if ev.rm_banco and ("Press Banca", f_str) not in existing_points:
+            chart_list.append({
+                "ejercicio_nombre": "Press Banca",
+                "fecha": f_str,
+                "max_e1rm": round(float(ev.rm_banco), 2),
+                "max_peso": round(float(ev.rm_banco), 2)
+            })
+        if ev.rm_peso_muerto and ("Peso Muerto", f_str) not in existing_points:
+            chart_list.append({
+                "ejercicio_nombre": "Peso Muerto",
+                "fecha": f_str,
+                "max_e1rm": round(float(ev.rm_peso_muerto), 2),
+                "max_peso": round(float(ev.rm_peso_muerto), 2)
+            })
+
+    chart_list.sort(key=lambda x: x["fecha"])
+    return chart_list
+
+@router.get("/me/attendance")
+def get_my_attendance(
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(get_current_user)
+):
+    """Devuelve el control de asistencia semanal para el alumno actual."""
+    if current_user.rol != "alumno":
+        raise HTTPException(status_code=403, detail="Sólo alumnos")
+
+    alumno = db.query(models.Alumno).filter(
+        models.Alumno.id_usuario == current_user.id_usuario
+    ).first()
+    if not alumno:
+        raise HTTPException(status_code=404, detail="Alumno no encontrado")
+
+    rutina_activa = db.query(models.Rutina).filter(models.Rutina.id_rutina == alumno.id_rutina_activa).first()
+    frecuencia_objetivo = rutina_activa.frecuencia_semanal if rutina_activa and rutina_activa.frecuencia_semanal else 3
+
+    from sqlalchemy import text
+    query = text("""
+        WITH SessionDays AS (
+            SELECT 
+                ses.id_sesion,
+                DATE_TRUNC('week', ses.fecha_inicio) AS semana,
+                re.id_dia,
+                COUNT(DISTINCT re.id_ejercicio) AS ejercicios_realizados
+            FROM entrenamiento_sesiones ses
+            JOIN entrenamiento_sets_reales set_r ON ses.id_sesion = set_r.id_sesion
+            JOIN rutinas_ejercicios re ON set_r.id_rutina_ejercicio = re.id_rutina_ejercicio
+            WHERE ses.id_alumno = :id_alumno 
+              AND ses.estado = 'completado'
+            GROUP BY ses.id_sesion, DATE_TRUNC('week', ses.fecha_inicio), re.id_dia
+        ),
+        DayTotals AS (
+            SELECT id_dia, COUNT(DISTINCT id_ejercicio) AS total_ejercicios
+            FROM rutinas_ejercicios
+            GROUP BY id_dia
+        ),
+        SessionStats AS (
+            SELECT 
+                sd.id_sesion,
+                sd.semana,
+                sd.id_dia,
+                sd.ejercicios_realizados,
+                dt.total_ejercicios,
+                (sd.ejercicios_realizados::FLOAT / NULLIF(dt.total_ejercicios, 0)) AS completitud,
+                ROW_NUMBER() OVER (PARTITION BY sd.id_sesion ORDER BY (sd.ejercicios_realizados::FLOAT / NULLIF(dt.total_ejercicios, 0)) DESC) as rn
+            FROM SessionDays sd
+            JOIN DayTotals dt ON sd.id_dia = dt.id_dia
+        ),
+        ValidSessions AS (
+            SELECT id_sesion, semana
+            FROM SessionStats
+            WHERE rn = 1 AND completitud >= 0.6
+        )
+        SELECT 
+            semana,
+            COUNT(id_sesion) AS asistencias
+        FROM ValidSessions
+        GROUP BY semana
+        ORDER BY semana DESC
+        LIMIT 10
+    """)
+    result = db.execute(query, {"id_alumno": current_user.id_usuario}).fetchall()
+
+    return {
+        "frecuencia_objetivo": frecuencia_objetivo,
+        "asistencias_por_semana": [
+            {
+                "semana": row.semana.isoformat() if hasattr(row.semana, 'isoformat') else str(row.semana),
+                "asistencias": row.asistencias
+            } for row in result
+        ]
+    }
 
 @router.get("/me/asistencias")
 def get_my_asistencias(

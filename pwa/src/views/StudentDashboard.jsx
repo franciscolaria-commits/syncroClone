@@ -1493,14 +1493,12 @@ export default function StudentDashboard() {
 
 
             onComplete={() => {
-
-
               setIsWorkingOut(false);
-
-
-              queryClient.invalidateQueries(['studentStats']);
-
-
+              queryClient.invalidateQueries({ queryKey: ['studentStats'] });
+              queryClient.invalidateQueries({ queryKey: ['studentLeagues'] });
+              queryClient.invalidateQueries({ queryKey: ['studentHistory'] });
+              queryClient.invalidateQueries({ queryKey: ['studentChart'] });
+              queryClient.invalidateQueries({ queryKey: ['studentAttendance'] });
             }} 
 
 

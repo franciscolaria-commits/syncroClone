@@ -53,6 +53,9 @@ export default function ActiveWorkout({ routine, initialDayIdx, onComplete, onCa
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['studentStats'] });
       queryClient.invalidateQueries({ queryKey: ['studentLeagues'] });
+      queryClient.invalidateQueries({ queryKey: ['studentHistory'] });
+      queryClient.invalidateQueries({ queryKey: ['studentChart'] });
+      queryClient.invalidateQueries({ queryKey: ['studentAttendance'] });
       
       if (data && data.nuevos_prs && data.nuevos_prs.length > 0) {
         setShowConfetti(true);
@@ -78,14 +81,46 @@ export default function ActiveWorkout({ routine, initialDayIdx, onComplete, onCa
     }
   });
 
-  const handleFinish = () => {
+  const handleFinish = async () => {
+    let finalSets = [...sets];
+
+    // Recolectar automáticamente cualquier serie con datos cargados en inputs que no haya presionado "✓ Set"
+    if (currentDay && currentDay.ejercicios) {
+      currentDay.ejercicios.forEach(ex => {
+        const isConPeso = ex.ejercicio?.es_con_peso !== false;
+        const pesoInput = document.getElementById(`peso-${ex.id_rutina_ejercicio}`);
+        const repsInput = document.getElementById(`reps-${ex.id_rutina_ejercicio}`);
+
+        const pesoVal = isConPeso ? (pesoInput ? pesoInput.value : '') : '0';
+        const repsVal = repsInput ? repsInput.value : '';
+
+        const existingCount = finalSets.filter(s => s.id_rutina_ejercicio === ex.id_rutina_ejercicio).length;
+        if (existingCount === 0 && repsVal && (!isConPeso || pesoVal)) {
+          const p = parseFloat(pesoVal || 0);
+          const r = parseInt(repsVal, 10);
+          if (p >= 0 && p <= 400 && r > 0) {
+            finalSets.push({
+              id_rutina_ejercicio: ex.id_rutina_ejercicio,
+              peso_usado: isConPeso ? p : 0,
+              reps_logradas: r
+            });
+          }
+        }
+      });
+    }
+
+    if (finalSets.length === 0) {
+      await modal.alert("Debes registrar al menos una serie (usando el botón '✓ Set') antes de finalizar el entrenamiento.");
+      return;
+    }
+
     const nextDay = (currentDayIdx + 1) % routine.dias.length;
     localStorage.setItem(`last_day_${routine.id_rutina}`, nextDay);
 
     mutation.mutate({
       id_rutina: routine.id_rutina,
       fecha_fin: new Date().toISOString(),
-      sets: sets
+      sets: finalSets
     });
   };
 

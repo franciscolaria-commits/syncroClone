@@ -41,15 +41,13 @@ export default function StudentProgress({ studentId }) {
   });
 
   const { data: chartData, isLoading: loadingChart } = useQuery({
-    queryKey: ['studentChart', studentId],
-    queryFn: () => api.get(`/api/v1/coaches/students/${studentId}/progress_chart`),
-    enabled: !!studentId
+    queryKey: ['studentChart', studentId || 'me'],
+    queryFn: () => api.get(studentId ? `/api/v1/coaches/students/${studentId}/progress_chart` : '/api/v1/students/me/progress_chart')
   });
 
   const { data: attendanceData, isLoading: loadingAttendance } = useQuery({
-    queryKey: ['studentAttendance', studentId],
-    queryFn: () => api.get(`/api/v1/coaches/students/${studentId}/attendance`),
-    enabled: !!studentId
+    queryKey: ['studentAttendance', studentId || 'me'],
+    queryFn: () => api.get(studentId ? `/api/v1/coaches/students/${studentId}/attendance` : '/api/v1/students/me/attendance')
   });
 
   const { data: historyData, isLoading: loadingHistory } = useQuery({
@@ -76,140 +74,134 @@ export default function StudentProgress({ studentId }) {
     );
   }
 
-  if (!stats) {
-    return (
-      <div className="p-12 text-center">
-        <p className="text-zinc-700 font-black text-3xl uppercase tracking-tighter">Sin datos de progreso.</p>
-        <p className="text-zinc-600 text-sm mt-2">El alumno aún no ha completado ninguna sesión.</p>
-      </div>
-    );
-  }
+  const safeStats = stats || {
+    total_sessions: 0,
+    total_volume_kg: 0,
+    total_reps: 0,
+    win_rate_percentage: 0,
+    rolling_adherence: 0,
+    rep_maxes: {}
+  };
 
-  const winRate = stats.win_rate_percentage || 0;
+  const winRate = safeStats.win_rate_percentage || 0;
   const pieData = [
     { name: 'Victorias (PRs)', value: winRate },
     { name: 'Mantenimiento', value: 100 - winRate }
   ];
   const COLORS = ['#10b981', '#18181b'];
 
-  const repMaxes = stats.rep_maxes || {};
+  const repMaxes = safeStats.rep_maxes || {};
   const exercises = Object.keys(repMaxes);
 
   return (
     <div className="w-full">
-      {studentId && (
-        <div className="flex gap-4 mb-4 border-b border-zinc-800 pb-2">
-          <button 
-            onClick={() => setProgressTab('training')}
-            className={`text-xs font-bold uppercase tracking-widest px-4 py-2 rounded transition-colors ${progressTab === 'training' ? 'bg-zinc-800 text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'}`}
-          >
-            Progreso Deportivo
-          </button>
-          <button 
-            onClick={() => setProgressTab('evaluations')}
-            className={`text-xs font-bold uppercase tracking-widest px-4 py-2 rounded transition-colors ${progressTab === 'evaluations' ? 'bg-zinc-800 text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'}`}
-          >
-            Evaluaciones Físicas
-          </button>
-        </div>
-      )}
+      <div className="flex gap-4 mb-4 border-b border-zinc-800 pb-2">
+        <button 
+          onClick={() => setProgressTab('training')}
+          className={`text-xs font-bold uppercase tracking-widest px-4 py-2 rounded transition-colors ${progressTab === 'training' ? 'bg-zinc-800 text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'}`}
+        >
+          Progreso Deportivo
+        </button>
+        <button 
+          onClick={() => setProgressTab('evaluations')}
+          className={`text-xs font-bold uppercase tracking-widest px-4 py-2 rounded transition-colors ${progressTab === 'evaluations' ? 'bg-zinc-800 text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'}`}
+        >
+          Evaluaciones Físicas
+        </button>
+      </div>
       
-      {progressTab === 'evaluations' && studentId ? (
+      {progressTab === 'evaluations' ? (
         <StudentEvaluations providedStudentId={studentId} />
       ) : (
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 auto-rows-min">
 
-      {/* ASISTENCIA HERO (Sólo Entrenador) */}
-      {studentId && (
-        <div className="lg:col-span-12 border border-zinc-800 bg-zinc-900 p-6 md:p-10 flex flex-col">
-          <h2 className="text-2xl md:text-4xl font-black text-white uppercase tracking-tighter mb-8 border-b border-zinc-800 pb-4">
-            CONTROL DE ASISTENCIA
-          </h2>
-          {loadingAttendance ? (
-            <p className="text-zinc-700 font-black text-2xl uppercase tracking-tighter">CARGANDO ASISTENCIA...</p>
-          ) : !attendanceData || attendanceData.asistencias_por_semana.length === 0 ? (
-            <p className="text-zinc-700 font-black text-2xl uppercase tracking-tighter">SIN DATOS DE ASISTENCIA.</p>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-              {attendanceData.asistencias_por_semana.map((weekData, idx) => {
-                const target = attendanceData.frecuencia_objetivo || 3;
-                const achieved = weekData.asistencias;
-                const percent = Math.min(100, Math.round((achieved / target) * 100));
-                
-                // Formatear la fecha para que sea legible (ej: "Semana del 12/10")
-                const weekDate = new Date(weekData.semana);
-                const dateStr = `${weekDate.getDate().toString().padStart(2, '0')}/${(weekDate.getMonth() + 1).toString().padStart(2, '0')}`;
-                
-                let colorClass = "bg-red-500/20 border-red-500/50 text-red-400"; // < 50%
-                let barColor = "bg-red-500";
-                
-                if (percent >= 100) {
-                  colorClass = "bg-green-500/20 border-green-500/50 text-green-400";
-                  barColor = "bg-green-500";
-                } else if (percent >= 60) {
-                  colorClass = "bg-yellow-500/20 border-yellow-500/50 text-yellow-400";
-                  barColor = "bg-yellow-500";
-                }
+      {/* ASISTENCIA HERO */}
+      <div className="lg:col-span-12 border border-zinc-800 bg-zinc-900 p-6 md:p-10 flex flex-col">
+        <h2 className="text-2xl md:text-4xl font-black text-white uppercase tracking-tighter mb-8 border-b border-zinc-800 pb-4">
+          CONTROL DE ASISTENCIA
+        </h2>
+        {loadingAttendance ? (
+          <p className="text-zinc-700 font-black text-2xl uppercase tracking-tighter">CARGANDO ASISTENCIA...</p>
+        ) : !attendanceData || attendanceData.asistencias_por_semana.length === 0 ? (
+          <p className="text-zinc-700 font-black text-2xl uppercase tracking-tighter">SIN DATOS DE ASISTENCIA.</p>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            {attendanceData.asistencias_por_semana.map((weekData, idx) => {
+              const target = attendanceData.frecuencia_objetivo || 3;
+              const achieved = weekData.asistencias;
+              const percent = Math.min(100, Math.round((achieved / target) * 100));
+              
+              // Formatear la fecha para que sea legible (ej: "Semana del 12/10")
+              const weekDate = new Date(weekData.semana);
+              const dateStr = `${weekDate.getDate().toString().padStart(2, '0')}/${(weekDate.getMonth() + 1).toString().padStart(2, '0')}`;
+              
+              let colorClass = "bg-red-500/20 border-red-500/50 text-red-400"; // < 50%
+              let barColor = "bg-red-500";
+              
+              if (percent >= 100) {
+                colorClass = "bg-green-500/20 border-green-500/50 text-green-400";
+                barColor = "bg-green-500";
+              } else if (percent >= 60) {
+                colorClass = "bg-yellow-500/20 border-yellow-500/50 text-yellow-400";
+                barColor = "bg-yellow-500";
+              }
 
-                return (
-                  <div key={idx} className={`border p-4 rounded-xl flex flex-col items-center justify-center text-center ${colorClass}`}>
-                    <span className="text-xs font-bold uppercase tracking-widest opacity-80 mb-1">Semana {dateStr}</span>
-                    <span className="text-3xl font-black">{achieved}<span className="text-xl opacity-60">/{target}</span></span>
-                    
-                    <div className="w-full bg-black/40 h-2 rounded-full mt-3 overflow-hidden">
-                      <div className={`h-full ${barColor} transition-all duration-500`} style={{ width: `${percent}%` }}></div>
-                    </div>
+              return (
+                <div key={idx} className={`border p-4 rounded-xl flex flex-col items-center justify-center text-center ${colorClass}`}>
+                  <span className="text-xs font-bold uppercase tracking-widest opacity-80 mb-1">Semana {dateStr}</span>
+                  <span className="text-3xl font-black">{achieved}<span className="text-xl opacity-60">/{target}</span></span>
+                  
+                  <div className="w-full bg-black/40 h-2 rounded-full mt-3 overflow-hidden">
+                    <div className={`h-full ${barColor} transition-all duration-500`} style={{ width: `${percent}%` }}></div>
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
-      
-      {/* CHART HERO (Sólo Entrenador) */}
-      {studentId && (
-        <div className="lg:col-span-12 border border-zinc-800 bg-zinc-900 p-6 md:p-10">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 border-b border-zinc-800 pb-4">
-            <h2 className="text-2xl md:text-4xl font-black text-white uppercase tracking-tighter">GRÁFICO DE PROGRESO</h2>
-            {availableExercises.length > 0 && (
-              <select 
-                value={selectedExercise}
-                onChange={e => setSelectedExercise(e.target.value)}
-                className="mt-4 sm:mt-0 bg-zinc-950 border border-zinc-700 text-white p-2 outline-none font-bold text-sm uppercase tracking-widest cursor-pointer"
-              >
-                {availableExercises.map(ex => (
-                  <option key={ex} value={ex}>{ex}</option>
-                ))}
-              </select>
-            )}
+                </div>
+              );
+            })}
           </div>
-          
-          {loadingChart ? (
-             <p className="text-zinc-700 font-black text-3xl uppercase tracking-tighter">CARGANDO GRÁFICO...</p>
-          ) : filteredChartData.length === 0 ? (
-             <p className="text-zinc-700 font-black text-3xl uppercase tracking-tighter">SIN DATOS PARA GRAFICAR.</p>
-          ) : (
-             <div className="w-full h-[400px]">
-               <ResponsiveContainer width="100%" height="100%">
-                 <LineChart data={filteredChartData}>
-                   <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
-                   <XAxis dataKey="fecha" stroke="#a1a1aa" tick={{fill: '#a1a1aa', fontSize: 12}} tickMargin={10} minTickGap={30} />
-                   <YAxis yAxisId="left" stroke="#3b82f6" tick={{fill: '#3b82f6', fontSize: 12}} domain={['auto', 'auto']} />
-                   <YAxis yAxisId="right" orientation="right" stroke="#10b981" tick={{fill: '#10b981', fontSize: 12}} domain={['auto', 'auto']} />
-                   <RechartsTooltip 
-                     contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', color: '#fff' }}
-                     itemStyle={{ fontWeight: 'bold' }}
-                   />
-                   <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                   <Line yAxisId="left" type="monotone" dataKey="max_e1rm" name="e1RM (Fuerza Estimada) [KG]" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2 }} activeDot={{ r: 6 }} />
-                   <Line yAxisId="right" type="monotone" dataKey="max_peso" name="Peso Real Máx [KG]" stroke="#10b981" strokeWidth={3} dot={{ r: 4, fill: '#10b981', strokeWidth: 2 }} activeDot={{ r: 6 }} />
-                 </LineChart>
-               </ResponsiveContainer>
-             </div>
+        )}
+      </div>
+      
+      {/* CHART HERO */}
+      <div className="lg:col-span-12 border border-zinc-800 bg-zinc-900 p-6 md:p-10">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 border-b border-zinc-800 pb-4">
+          <h2 className="text-2xl md:text-4xl font-black text-white uppercase tracking-tighter">GRÁFICO DE PROGRESO</h2>
+          {availableExercises.length > 0 && (
+            <select 
+              value={selectedExercise}
+              onChange={e => setSelectedExercise(e.target.value)}
+              className="mt-4 sm:mt-0 bg-zinc-950 border border-zinc-700 text-white p-2 outline-none font-bold text-sm uppercase tracking-widest cursor-pointer"
+            >
+              {availableExercises.map(ex => (
+                <option key={ex} value={ex}>{ex}</option>
+              ))}
+            </select>
           )}
         </div>
-      )}
+        
+        {loadingChart ? (
+           <p className="text-zinc-700 font-black text-3xl uppercase tracking-tighter">CARGANDO GRÁFICO...</p>
+        ) : filteredChartData.length === 0 ? (
+           <p className="text-zinc-700 font-black text-3xl uppercase tracking-tighter">SIN DATOS PARA GRAFICAR.</p>
+        ) : (
+           <div className="w-full h-[400px]">
+             <ResponsiveContainer width="100%" height="100%">
+               <LineChart data={filteredChartData}>
+                 <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                 <XAxis dataKey="fecha" stroke="#a1a1aa" tick={{fill: '#a1a1aa', fontSize: 12}} tickMargin={10} minTickGap={30} />
+                 <YAxis yAxisId="left" stroke="#3b82f6" tick={{fill: '#3b82f6', fontSize: 12}} domain={['auto', 'auto']} />
+                 <YAxis yAxisId="right" orientation="right" stroke="#10b981" tick={{fill: '#10b981', fontSize: 12}} domain={['auto', 'auto']} />
+                 <RechartsTooltip 
+                   contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', color: '#fff' }}
+                   itemStyle={{ fontWeight: 'bold' }}
+                 />
+                 <Legend wrapperStyle={{ paddingTop: '20px' }} />
+                 <Line yAxisId="left" type="monotone" dataKey="max_e1rm" name="e1RM (Fuerza Estimada) [KG]" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2 }} activeDot={{ r: 6 }} />
+                 <Line yAxisId="right" type="monotone" dataKey="max_peso" name="Peso Real Máx [KG]" stroke="#10b981" strokeWidth={3} dot={{ r: 4, fill: '#10b981', strokeWidth: 2 }} activeDot={{ r: 6 }} />
+               </LineChart>
+             </ResponsiveContainer>
+           </div>
+        )}
+      </div>
 
       {/* LIGAS HERO (Fase 4.5) */}
       <div className="lg:col-span-12 border border-zinc-800 bg-zinc-900 p-6 md:p-10">
@@ -311,7 +303,11 @@ export default function StudentProgress({ studentId }) {
                 <h4 className="text-lg font-black text-zinc-300 uppercase tracking-tighter mb-6 truncate">{ejercicio}</h4>
                 <div className="grid grid-cols-4 gap-3">
                   {['1RM', '5RM', '8RM', '10RM'].map(rango => {
-                    const peso = repMaxes[ejercicio][rango];
+                    let peso = repMaxes[ejercicio]?.[rango];
+                    if (!peso) {
+                      if (rango === '1RM' || rango === '5RM') peso = repMaxes[ejercicio]?.['1-5'];
+                      else if (rango === '8RM' || rango === '10RM') peso = repMaxes[ejercicio]?.['6-10'];
+                    }
                     return (
                       <div key={rango} className={`flex flex-col items-center justify-center p-3 border ${peso ? 'border-amber-500/50 bg-amber-500/10 text-amber-500' : 'border-zinc-800 bg-zinc-900 text-zinc-600'}`}>
                         <span className="text-[10px] font-bold uppercase tracking-widest mb-2">{rango}</span>

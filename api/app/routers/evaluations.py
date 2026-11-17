@@ -1,4 +1,4 @@
-﻿from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from typing import List
@@ -62,7 +62,7 @@ def get_physical_evals(
 ):
     query = db.query(EvaluacionFisica).filter(EvaluacionFisica.id_alumno == student_id).order_by(desc(EvaluacionFisica.fecha))
     if current_user.rol == "entrenador":
-        query = query.filter(EvaluacionFisica.visible_para_entrenador == True)
+        query = query.filter((EvaluacionFisica.visible_para_entrenador == True) | (EvaluacionFisica.visible_para_entrenador.is_(None)))
     return query.all()
 
 @router.delete("/evaluations/physical/{eval_id}")
@@ -112,7 +112,7 @@ def get_body_comps(
 ):
     query = db.query(ComposicionCorporal).filter(ComposicionCorporal.id_alumno == student_id).order_by(desc(ComposicionCorporal.fecha))
     if current_user.rol == "entrenador":
-        query = query.filter(ComposicionCorporal.visible_para_entrenador == True)
+        query = query.filter((ComposicionCorporal.visible_para_entrenador == True) | (ComposicionCorporal.visible_para_entrenador.is_(None)))
     return query.all()
 
 @router.delete("/evaluations/body/{comp_id}")

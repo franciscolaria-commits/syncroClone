@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Camera, Activity, FileText, Upload, Plus, Trash2, CheckCircle2, X } from 'lucide-react';
 import { api } from '../services/api.js';
 
@@ -19,15 +19,20 @@ const StudentEvaluations = ({ providedStudentId }) => {
   const [selectedRecord, setSelectedRecord] = useState(null);
 
   useEffect(() => {
-    if (!providedStudentId) {
+    if (providedStudentId) {
+      setStudentId(providedStudentId);
+      setUserRole('entrenador');
+    } else {
       const userRaw = localStorage.getItem('fitness_user');
       if (userRaw) {
-        const u = JSON.parse(userRaw);
-        setStudentId(u.id_usuario);
-        setUserRole(u.rol);
+        try {
+          const u = JSON.parse(userRaw);
+          setStudentId(u.id_usuario);
+          setUserRole(u.rol || 'alumno');
+        } catch (e) {
+          console.error(e);
+        }
       }
-    } else {
-      setUserRole('entrenador');
     }
   }, [providedStudentId]);
 

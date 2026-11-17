@@ -438,14 +438,49 @@ def get_student_progress_chart(
     """)
     result = db.execute(query, {"id_alumno": id_alumno}).fetchall()
     
-    return [
+    chart_list = [
         {
             "ejercicio_nombre": row.ejercicio_nombre,
             "fecha": row.fecha.isoformat() if hasattr(row.fecha, 'isoformat') else str(row.fecha),
-            "max_e1rm": round(row.max_e1rm, 2),
-            "max_peso": round(row.max_peso, 2)
+            "max_e1rm": round(float(row.max_e1rm), 2),
+            "max_peso": round(float(row.max_peso), 2)
         } for row in result
     ]
+
+    # Complementar con datos de evaluaciones físicas si existen
+    evals = db.query(models.EvaluacionFisica).filter(
+        models.EvaluacionFisica.id_alumno == id_alumno
+    ).order_by(models.EvaluacionFisica.fecha.asc()).all()
+
+    existing_points = {(p["ejercicio_nombre"], p["fecha"][:10]) for p in chart_list}
+    for ev in evals:
+        f_str = ev.fecha.strftime("%Y-%m-%d") if ev.fecha else ""
+        if not f_str:
+            continue
+        if ev.rm_sentadilla and ("Sentadilla", f_str) not in existing_points:
+            chart_list.append({
+                "ejercicio_nombre": "Sentadilla",
+                "fecha": f_str,
+                "max_e1rm": round(float(ev.rm_sentadilla), 2),
+                "max_peso": round(float(ev.rm_sentadilla), 2)
+            })
+        if ev.rm_banco and ("Press Banca", f_str) not in existing_points:
+            chart_list.append({
+                "ejercicio_nombre": "Press Banca",
+                "fecha": f_str,
+                "max_e1rm": round(float(ev.rm_banco), 2),
+                "max_peso": round(float(ev.rm_banco), 2)
+            })
+        if ev.rm_peso_muerto and ("Peso Muerto", f_str) not in existing_points:
+            chart_list.append({
+                "ejercicio_nombre": "Peso Muerto",
+                "fecha": f_str,
+                "max_e1rm": round(float(ev.rm_peso_muerto), 2),
+                "max_peso": round(float(ev.rm_peso_muerto), 2)
+            })
+
+    chart_list.sort(key=lambda x: x["fecha"])
+    return chart_list
 
 @router.get("/students/{id_alumno}/attendance")
 def get_student_attendance(
@@ -600,6 +635,33 @@ def get_student_stats_for_coach(
         if nombre_ej not in rep_maxes:
             rep_maxes[nombre_ej] = {}
         rep_maxes[nombre_ej][rango] = peso
+        # Mapeo a etiquetas exactas esperadas por el frontend ('1RM', '5RM', '8RM', '10RM')
+        if rango == "1-5":
+            rep_maxes[nombre_ej].setdefault("1RM", peso)
+            rep_maxes[nombre_ej].setdefault("5RM", peso)
+        elif rango == "6-10":
+            rep_maxes[nombre_ej].setdefault("8RM", peso)
+            rep_maxes[nombre_ej].setdefault("10RM", peso)
+
+    # Incorporar RMs de evaluaciones físicas si están disponibles
+    evals = db.query(models.EvaluacionFisica).filter(
+        models.EvaluacionFisica.id_alumno == id_alumno
+    ).order_by(models.EvaluacionFisica.fecha.desc()).all()
+
+    for ev in evals:
+        eval_mapping = [
+            ("Sentadilla", ev.rm_sentadilla, ev.rm3_sentadilla),
+            ("Press Banca", ev.rm_banco, ev.rm3_banco),
+            ("Peso Muerto", ev.rm_peso_muerto, ev.rm3_peso_muerto),
+        ]
+        for name, rm1, rm3 in eval_mapping:
+            if rm1 or rm3:
+                rep_maxes.setdefault(name, {})
+                if rm1 and "1RM" not in rep_maxes[name]:
+                    rep_maxes[name]["1RM"] = float(rm1)
+                    rep_maxes[name].setdefault("1-5", float(rm1))
+                if rm3 and "5RM" not in rep_maxes[name]:
+                    rep_maxes[name]["5RM"] = float(rm3)
 
     return {
         "total_sessions": total_sessions,
@@ -638,9 +700,30 @@ def get_student_league_for_coach(
         "Dominadas": "Dominadas"
     }
 
+    # Cargar evaluaciones físicas como fallback de 1RM si no hay sesiones entrenadas
+    evals = db.query(models.EvaluacionFisica).filter(
+        models.EvaluacionFisica.id_alumno == id_alumno
+    ).order_by(models.EvaluacionFisica.fecha.desc()).all()
+
+    eval_fallbacks = {}
+    for ev in evals:
+        if "Press Banca" not in eval_fallbacks:
+            if ev.rm_banco: eval_fallbacks["Press Banca"] = float(ev.rm_banco)
+            elif ev.rm3_banco: eval_fallbacks["Press Banca"] = round(float(ev.rm3_banco) * 1.08, 2)
+
+        if "Sentadilla" not in eval_fallbacks:
+            if ev.rm_sentadilla: eval_fallbacks["Sentadilla"] = float(ev.rm_sentadilla)
+            elif ev.rm3_sentadilla: eval_fallbacks["Sentadilla"] = round(float(ev.rm3_sentadilla) * 1.08, 2)
+
+        if "Peso Muerto" not in eval_fallbacks:
+            if ev.rm_peso_muerto: eval_fallbacks["Peso Muerto"] = float(ev.rm_peso_muerto)
+            elif ev.rm3_peso_muerto: eval_fallbacks["Peso Muerto"] = round(float(ev.rm3_peso_muerto) * 1.08, 2)
+
     result = []
     for pilar, nombre_largo in MAPEO_PILARES.items():
-        ejercicio = db.query(models.Ejercicio).filter(models.Ejercicio.nombre == nombre_largo).first()
+        ejercicio = db.query(models.Ejercicio).filter(
+            (models.Ejercicio.nombre == nombre_largo) | (models.Ejercicio.nombre.ilike(nombre_largo))
+        ).first()
         if not ejercicio:
             continue
 
@@ -649,7 +732,10 @@ def get_student_league_for_coach(
             models.HistorialEjercicioAlumno.id_ejercicio == ejercicio.id_ejercicio
         ).first()
 
-        e1rm_actual = historial.last_e1rm if historial else 0.0
+        e1rm_actual = float(historial.last_e1rm) if historial and historial.last_e1rm else 0.0
+        if e1rm_actual == 0.0 and pilar in eval_fallbacks:
+            e1rm_actual = eval_fallbacks[pilar]
+
         multiplicador_actual = e1rm_actual / peso_corporal if peso_corporal > 0 else 0.0
 
         umbral_alcanzado = db.query(models.GamificacionUmbral).filter(
@@ -1216,19 +1302,29 @@ def import_routine(
 
     # 5. Crear historial si hay sets con datos
     sesiones_creadas = 0
+    max_e1rm_by_ejercicio = {}
+
     for dia_idx, dia in enumerate(data.dias):
+        dia_valid_sets = []
         for ex_item in dia.ejercicios:
             nombre_lower = ex_item.nombre_ejercicio.strip().lower()
             id_re = rutina_ejercicio_map.get((dia_idx, nombre_lower))
+            id_ej = exercise_id_map.get(nombre_lower)
             if not id_re or not ex_item.historial:
                 continue
 
-            # Filtrar sets con datos reales
             sets_validos = [s for s in ex_item.historial if s.reps_logradas > 0]
-            if not sets_validos:
-                continue
+            for s in sets_validos:
+                dia_valid_sets.append((id_re, id_ej, s))
+                # Calcular e1RM para historial
+                peso = max(0.0, float(s.peso_usado))
+                reps = max(1, int(s.reps_logradas))
+                e1rm = peso * (1.0 + 0.0333 * reps)
+                if id_ej:
+                    if id_ej not in max_e1rm_by_ejercicio or e1rm > max_e1rm_by_ejercicio[id_ej]:
+                        max_e1rm_by_ejercicio[id_ej] = e1rm
 
-            # Crear una sesión histórica por cada ejercicio con datos
+        if dia_valid_sets:
             sesion = models.EntrenamientoSesion(
                 id_sesion=uuid.uuid4(),
                 id_alumno=data.id_alumno,
@@ -1241,22 +1337,46 @@ def import_routine(
             db.flush()
             sesiones_creadas += 1
 
-            for set_item in sets_validos:
+            for id_re, _, set_item in dia_valid_sets:
                 set_real = models.EntrenamientoSetReal(
                     id_set=uuid.uuid4(),
                     id_sesion=sesion.id_sesion,
                     id_rutina_ejercicio=id_re,
-                    peso_usado=max(0.0, set_item.peso_usado),
-                    reps_logradas=max(0, set_item.reps_logradas),
+                    peso_usado=max(0.0, float(set_item.peso_usado)),
+                    reps_logradas=max(0, int(set_item.reps_logradas)),
                     rpe=None
                 )
                 db.add(set_real)
+
+    # Actualizar o insertar HistorialEjercicioAlumno para que alimente Ligas y Records
+    for id_ej, e1rm_val in max_e1rm_by_ejercicio.items():
+        hist = db.query(models.HistorialEjercicioAlumno).filter(
+            models.HistorialEjercicioAlumno.id_alumno == data.id_alumno,
+            models.HistorialEjercicioAlumno.id_ejercicio == id_ej
+        ).first()
+        if not hist:
+            hist = models.HistorialEjercicioAlumno(
+                id_alumno=data.id_alumno,
+                id_ejercicio=id_ej,
+                last_e1rm=e1rm_val
+            )
+            db.add(hist)
+        elif e1rm_val > (hist.last_e1rm or 0.0):
+            hist.last_e1rm = e1rm_val
 
     # 6. Asignar rutina al alumno si se indicó
     if data.asignar_al_alumno:
         alumno.id_rutina_activa = rutina.id_rutina
 
     db.commit()
+
+    # Refrescar vistas materializadas para que el progreso aparezca inmediatamente
+    try:
+        db.execute(text("REFRESH MATERIALIZED VIEW mv_rep_maxes"))
+        db.execute(text("REFRESH MATERIALIZED VIEW mv_student_progress_chart"))
+        db.commit()
+    except Exception as mv_err:
+        print("Aviso: no se pudo refrescar la vista materializada tras importar rutina:", mv_err)
 
     return {
         "success": True,

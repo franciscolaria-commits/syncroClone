@@ -151,6 +151,8 @@ async def parental_consent_guardian_middleware(request: Request, call_next):
         "/api/v1/students/me/weight",
         "/api/v1/students/me/league",
         "/api/v1/students/me/asistencias",
+        "/api/v1/students/me/progress_chart",
+        "/api/v1/students/me/attendance",
     )
     if any(path.startswith(prefix) for prefix in guarded_prefixes):
         auth_header = request.headers.get("authorization")
