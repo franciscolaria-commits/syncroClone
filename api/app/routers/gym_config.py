@@ -58,11 +58,7 @@ def update_gym_config(
 ):
     coach = db.query(Entrenador).filter(Entrenador.id_usuario == current_user.id_usuario).first()
     if not coach:
-        raise HTTPException(status_code=403, detail="No es entrenador")    
-    if coach.tipo_cuenta != body.tipo_cuenta:
-        students_count = db.query(Alumno).filter(Alumno.id_entrenador == current_user.id_usuario).count()
-        if students_count > 0:
-            raise HTTPException(status_code=400, detail="No puedes cambiar el tipo de cuenta porque ya tienes alumnos registrados.")
+        raise HTTPException(status_code=403, detail="No es entrenador")
 
     coach.tipo_cuenta          = body.tipo_cuenta
     coach.gym_tipo_cobro       = body.gym_tipo_cobro
