@@ -193,7 +193,7 @@ export default function StudentProfile({ profile, onProfileUpdated, onOpenAttend
               <div className="text-left">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Membresía</p>
                 <p className="text-xs font-bold text-zinc-200">
-                  {isClassPack ? `${profile?.clases_restantes || 0} Clases Restantes` : 'Pase Libre'}
+                  {isClassPack ? `${profile?.clases_restantes || 0} Clases Restantes` : (profile?.tipo_membresia === 'pase_libre' ? 'Pase Libre' : 'Sin configurar')}
                 </p>
               </div>
             </div>
@@ -494,7 +494,7 @@ export default function StudentProfile({ profile, onProfileUpdated, onOpenAttend
               <div className="bg-zinc-950/60 p-3.5 rounded-xl border border-zinc-800/80">
                 <p className="text-[10px] font-bold text-zinc-500 uppercase">Tipo de Plan</p>
                 <p className="text-sm font-bold text-zinc-200 mt-0.5">
-                  {isClassPack ? 'Paquete por Clases' : 'Pase Libre Mensual'}
+                  {isClassPack ? 'Paquete por Clases' : (profile?.tipo_membresia === 'pase_libre' ? 'Pase Libre Mensual' : 'Sin membresía configurada')}
                 </p>
                 {isClassPack && (
                   <p className="text-[11px] text-amber-400 font-semibold mt-1">

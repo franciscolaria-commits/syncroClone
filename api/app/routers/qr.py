@@ -99,6 +99,14 @@ def qr_checkin(
     if not alumno:
         raise HTTPException(status_code=403, detail="No pertenecés a este gimnasio")
 
+    if not alumno.tipo_membresia:
+        return {
+            "status": "sin_membresia",
+            "mensaje": "Debes configurar tu tipo de membresía antes de registrar asistencias",
+            "clases_restantes": 0,
+            "tipo_membresia": None,
+        }
+
     today = date.today()
     hora_actual = datetime.now().strftime("%H:%M")
 

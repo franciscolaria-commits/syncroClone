@@ -648,10 +648,26 @@ def update_my_membership(data: schemas.MembershipUpdate, db: Session = Depends(g
     if not alumno:
         raise HTTPException(status_code=404, detail='Alumno no encontrado')
     
+    if data.tipo_membresia not in ['pase_libre', 'por_clases']:
+        raise HTTPException(status_code=400, detail="Tipo de membresía inválido. Debe ser 'pase_libre' o 'por_clases'.")
+
     alumno.tipo_membresia = data.tipo_membresia
-    if data.tipo_membresia == 'por_clases' and data.clases_compradas is not None:
-        alumno.clases_compradas = data.clases_compradas
-        alumno.clases_restantes = data.clases_compradas
+    if data.tipo_membresia == 'por_clases':
+        alumno.gym_paquete_id = data.gym_paquete_id
+        if data.clases_compradas is not None:
+            alumno.clases_compradas = data.clases_compradas
+            alumno.clases_restantes = data.clases_compradas
+        elif data.gym_paquete_id and alumno.entrenador and alumno.entrenador.gym_paquetes_clases:
+            for p in alumno.entrenador.gym_paquetes_clases:
+                if str(p.get("id")) == str(data.gym_paquete_id):
+                    clases = int(p.get("clases", 0))
+                    alumno.clases_compradas = clases
+                    alumno.clases_restantes = clases
+                    break
+    elif data.tipo_membresia == 'pase_libre':
+        alumno.gym_paquete_id = None
+        alumno.clases_compradas = None
+        alumno.clases_restantes = None
     
     db.commit()
     db.refresh(alumno)

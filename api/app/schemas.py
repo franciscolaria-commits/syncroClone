@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr, Field
-from typing import Optional, List
+from typing import Optional, List, Any
 from datetime import datetime, date
 from uuid import UUID
 
@@ -69,6 +69,12 @@ class EntrenadorBase(BaseModel):
     fecha_fin_prorroga: Optional[datetime] = None
     en_prorroga_activa: Optional[bool] = False
     dias_prorroga_restantes: Optional[int] = None
+    gym_tipo_cobro: Optional[str] = None
+    gym_frecuencia_tipo: Optional[str] = None
+    gym_frecuencia_valor: Optional[int] = None
+    gym_monto_pase_libre: Optional[float] = None
+    gym_monto_clases: Optional[float] = None
+    gym_paquetes_clases: Optional[List[Any]] = None
 
 class EntrenadorUpdate(EntrenadorBase):
     pass
@@ -439,6 +445,12 @@ class CoachAdminOut(BaseModel):
     fecha_fin_prorroga: Optional[datetime] = None
     en_prorroga_activa: bool = False
     dias_prorroga_restantes: Optional[int] = None
+    gym_tipo_cobro: Optional[str] = None
+    gym_frecuencia_tipo: Optional[str] = None
+    gym_frecuencia_valor: Optional[int] = None
+    gym_monto_pase_libre: Optional[float] = None
+    gym_monto_clases: Optional[float] = None
+    gym_paquetes_clases: Optional[List[Any]] = None
 
 class CoachAdminUpdate(BaseModel):
     limite_alumnos: Optional[int] = None

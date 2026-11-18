@@ -122,6 +122,10 @@ export default function QRCheckinView() {
       bg: 'bg-red-500/20', border: 'border-red-500/40', iconColor: 'text-red-400',
       icon: <IconRefresh />, title: 'Sin clases disponibles', subtitle: '¡Renovar membresía para seguir entrenando!',
     };
+    if (result.status === 'sin_membresia') return {
+      bg: 'bg-amber-500/20', border: 'border-amber-500/40', iconColor: 'text-amber-400',
+      icon: <IconWarn />, title: 'Membresía no configurada', subtitle: result.mensaje || 'Debes configurar tu membresía en la app antes de ingresar.',
+    };
     return null;
   };
 

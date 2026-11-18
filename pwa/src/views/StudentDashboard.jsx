@@ -241,7 +241,11 @@ export default function StudentDashboard() {
 
   const isBlockedByPayment = profile?.bloqueado_por_pago || (profile?.data && profile.data.bloqueado_por_pago);
 
-  const needsMembershipConfig = profile && !profile?.tipo_membresia && profile?.entrenador?.tipo_cuenta === 'gimnasio' && profile?.entrenador?.gym_tipo_cobro === 'ambos';
+  const needsMembershipConfig = Boolean(
+    profile &&
+    !profile?.tipo_membresia &&
+    profile?.entrenador?.tipo_cuenta === 'gimnasio'
+  );
 
 
 
@@ -780,24 +784,14 @@ export default function StudentDashboard() {
                     <h3 className="text-sm font-bold text-amber-500 uppercase tracking-widest mb-1">MI MEMBRESÍA</h3>
 
 
-                    {(profile?.tipo_membresia === 'por_clases' || profile?.entrenador?.gym_tipo_cobro === 'por_clases') ? (
-
-
+                    {(profile?.tipo_membresia === 'por_clases' || (!profile?.tipo_membresia && profile?.entrenador?.gym_tipo_cobro === 'por_clases')) ? (
                       <p className="text-zinc-300">
-
-
                         Tenés <span className="text-white font-bold">{profile?.clases_restantes || 0}</span> clases restantes de tu paquete.
-
-
                       </p>
-
-
-                    ) : (
-
-
+                    ) : profile?.tipo_membresia === 'pase_libre' ? (
                       <p className="text-zinc-300">Estás en modalidad <span className="text-white font-bold">Pase Libre</span>.</p>
-
-
+                    ) : (
+                      <p className="text-amber-400 font-medium">Membresía pendiente de configuración.</p>
                     )}
 
 
