@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, logout } from '../services/api.js';
 import { useModal } from '../components/ModalProvider.jsx';
 import { markDashboardMounted, markBootstrapStart, markBootstrapDone, logBgPrefetch } from '../utils/perfTracker.js';
-import { Menu, X, Copy, Download, ChevronDown, ChevronUp, AlertTriangle, ShieldAlert, Loader2 } from "lucide-react";
+import { Menu, X, Copy, Download, ChevronDown, ChevronUp, AlertTriangle, ShieldAlert, Loader2, FileText, ExternalLink, Shield } from "lucide-react";
 
 const WorkoutBuilder = React.lazy(() => import('./WorkoutBuilder.jsx'));
 const StudentProgress = React.lazy(() => import('./StudentProgress.jsx'));
@@ -1339,6 +1339,46 @@ export default function CoachDashboard() {
                 >
                   Cancelar Suscripción
                 </button>
+              </div>
+            </div>
+
+            {/* SECCIÓN DOCUMENTACIÓN LEGAL Y PRIVACIDAD */}
+            <div className="border-t border-zinc-800/80 my-2" />
+            <div className="rounded-xl p-4 bg-zinc-900/50 border border-zinc-800 flex flex-col gap-3">
+              <div className="flex items-center gap-2.5">
+                <FileText className="w-4 h-4 text-blue-400 shrink-0" />
+                <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-300">
+                  Términos y Privacidad de la Plataforma
+                </h3>
+              </div>
+              <p className="text-xs text-zinc-400 leading-relaxed">
+                Accede a las condiciones del servicio y las políticas de privacidad y protección de datos vigentes:
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                <a
+                  href="/Syncro_Terminos_y_Condiciones.pdf"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-between p-3 rounded-lg bg-zinc-950/70 hover:bg-zinc-800/80 border border-zinc-800 hover:border-zinc-700 text-xs text-zinc-200 hover:text-white transition-all group cursor-pointer"
+                >
+                  <span className="flex items-center gap-2 font-semibold">
+                    <FileText className="w-3.5 h-3.5 text-blue-400 group-hover:scale-110 transition-transform" />
+                    Términos y Condiciones
+                  </span>
+                  <ExternalLink className="w-3.5 h-3.5 text-zinc-500 group-hover:text-zinc-300 transition-colors" />
+                </a>
+                <a
+                  href="/Syncro_Politica_de_Privacidad.pdf"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-between p-3 rounded-lg bg-zinc-950/70 hover:bg-zinc-800/80 border border-zinc-800 hover:border-zinc-700 text-xs text-zinc-200 hover:text-white transition-all group cursor-pointer"
+                >
+                  <span className="flex items-center gap-2 font-semibold">
+                    <Shield className="w-3.5 h-3.5 text-blue-400 group-hover:scale-110 transition-transform" />
+                    Políticas de Privacidad
+                  </span>
+                  <ExternalLink className="w-3.5 h-3.5 text-zinc-500 group-hover:text-zinc-300 transition-colors" />
+                </a>
               </div>
             </div>
 

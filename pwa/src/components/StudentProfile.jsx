@@ -5,7 +5,7 @@ import { api, logout } from '../services/api.js';
 import { 
   User, Mail, Phone, Calendar, Dumbbell, Target, Shield, 
   Trash2, Lock, Eye, EyeOff, Save, AlertTriangle, CheckCircle2, 
-  X, UserCheck, Clock, Award
+  X, UserCheck, Clock, Award, FileText, ExternalLink
 } from 'lucide-react';
 
 export default function StudentProfile({ profile, onProfileUpdated, onOpenAttendances }) {
@@ -552,6 +552,57 @@ export default function StudentProfile({ profile, onProfileUpdated, onOpenAttend
 
         </div>
 
+      </div>
+
+      {/* ── SECCIÓN DOCUMENTOS LEGALES Y PRIVACIDAD AL FONDO ── */}
+      <div className="bg-zinc-900/40 backdrop-blur-xl border border-zinc-800 rounded-3xl p-6 md:p-8 shadow-xl flex flex-col gap-4">
+        <div className="flex items-center gap-3 pb-3 border-b border-zinc-800/80">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+            <FileText className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="text-base font-bold text-white tracking-tight">Términos Legales y Privacidad</h3>
+            <p className="text-xs text-zinc-400">Revisa las condiciones de uso del servicio y las políticas de protección y tratamiento de tus datos.</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+          <a
+            href="/Syncro_Terminos_y_Condiciones.pdf"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-between p-4 rounded-2xl bg-zinc-950/60 hover:bg-zinc-800/60 border border-zinc-800/80 hover:border-zinc-700 transition-all group cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-400 group-hover:scale-105 transition-transform">
+                <FileText className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-zinc-100 group-hover:text-blue-400 transition-colors">Términos y Condiciones</p>
+                <p className="text-[11px] text-zinc-500">Reglas y acuerdos de uso del servicio</p>
+              </div>
+            </div>
+            <ExternalLink className="w-4 h-4 text-zinc-500 group-hover:text-zinc-300 transition-colors" />
+          </a>
+
+          <a
+            href="/Syncro_Politica_de_Privacidad.pdf"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-between p-4 rounded-2xl bg-zinc-950/60 hover:bg-zinc-800/60 border border-zinc-800/80 hover:border-zinc-700 transition-all group cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 group-hover:scale-105 transition-transform">
+                <Shield className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-zinc-100 group-hover:text-emerald-400 transition-colors">Políticas de Privacidad</p>
+                <p className="text-[11px] text-zinc-500">Tratamiento y protección de datos personales</p>
+              </div>
+            </div>
+            <ExternalLink className="w-4 h-4 text-zinc-500 group-hover:text-zinc-300 transition-colors" />
+          </a>
+        </div>
       </div>
 
       {/* ── MODAL DE CONFIRMACIÓN: ELIMINAR CUENTA DEFINITIVAMENTE ── */}

@@ -107,6 +107,14 @@ export default function AuthView({ onLoginSuccess }) {
     e.preventDefault();
     const email = e.target['reg-coach-email'].value;
     const password = e.target['reg-coach-password'].value;
+    const termsAccepted = e.target['reg-coach-terms']?.checked;
+    const privacyAccepted = e.target['reg-coach-privacy']?.checked;
+
+    if (!termsAccepted || !privacyAccepted) {
+      setError("Debes leer y aceptar los Términos y Condiciones y las Políticas de Privacidad.");
+      return;
+    }
+
     setLoadingAction('registerCoach');
     try {
       await api.post("/api/v1/auth/register", { email, password, rol: "entrenador" });
@@ -133,6 +141,14 @@ export default function AuthView({ onLoginSuccess }) {
     const goal = e.target['reg-student-goal'].value;
     const rawPhone = e.target['reg-student-phone'] ? e.target['reg-student-phone'].value.trim() : '';
     const phone = rawPhone || null;
+    const termsAccepted = e.target['reg-student-terms']?.checked;
+    const privacyAccepted = e.target['reg-student-privacy']?.checked;
+
+    if (!termsAccepted || !privacyAccepted) {
+      setError("Debes leer y aceptar los Términos y Condiciones y las Políticas de Privacidad.");
+      return;
+    }
+
     setLoadingAction('registerStudent');
     try {
       const tipoMembresiaEl = e.target['reg-student-membresia'];
@@ -266,11 +282,55 @@ export default function AuthView({ onLoginSuccess }) {
               </div>
             </div>
 
-            <div className="border-t border-zinc-800/80 pt-4 mt-1 flex flex-col gap-1.5">
-              <h3 className="text-sm font-bold text-zinc-200">Privacidad de tus datos</h3>
+            <div className="border-t border-zinc-800/80 pt-4 mt-1 flex flex-col gap-2">
+              <h3 className="text-sm font-bold text-zinc-200">Privacidad y Términos</h3>
               <p className="text-xs text-zinc-400 leading-relaxed">
-                Tu contraseña nunca será visible para nadie.
+                Tu contraseña nunca será visible para nadie. Para registrarte como entrenador, debes aceptar nuestros acuerdos legales:
               </p>
+              <div className="flex flex-col gap-2.5 pt-1">
+                <label className="flex items-start gap-2.5 text-xs text-zinc-300 cursor-pointer select-none">
+                  <input 
+                    type="checkbox" 
+                    id="reg-coach-terms" 
+                    required 
+                    className="mt-0.5 h-4 w-4 rounded border-zinc-700 bg-zinc-900 text-blue-600 focus:ring-blue-500 cursor-pointer accent-blue-600 shrink-0" 
+                  />
+                  <span>
+                    He leído y acepto los{' '}
+                    <a 
+                      href="/Syncro_Terminos_y_Condiciones.pdf" 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-blue-400 hover:text-blue-300 underline font-semibold"
+                    >
+                      Términos y Condiciones
+                    </a>
+                    {' '}*
+                  </span>
+                </label>
+                <label className="flex items-start gap-2.5 text-xs text-zinc-300 cursor-pointer select-none">
+                  <input 
+                    type="checkbox" 
+                    id="reg-coach-privacy" 
+                    required 
+                    className="mt-0.5 h-4 w-4 rounded border-zinc-700 bg-zinc-900 text-blue-600 focus:ring-blue-500 cursor-pointer accent-blue-600 shrink-0" 
+                  />
+                  <span>
+                    He leído y acepto las{' '}
+                    <a 
+                      href="/Syncro_Politica_de_Privacidad.pdf" 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-blue-400 hover:text-blue-300 underline font-semibold"
+                    >
+                      Políticas de Privacidad
+                    </a>
+                    {' '}*
+                  </span>
+                </label>
+              </div>
             </div>
 
             <button type="submit" disabled={loadingAction === 'registerCoach'} className="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 font-bold active:scale-95 transition-all text-sm mt-2 shadow-lg shadow-blue-500/10 disabled:opacity-50">
@@ -447,11 +507,55 @@ export default function AuthView({ onLoginSuccess }) {
               </div>
             )}
 
-            <div className="border-t border-zinc-800/80 pt-4 mt-1 flex flex-col gap-1.5">
-              <h3 className="text-sm font-bold text-zinc-200">Privacidad de tus datos</h3>
+            <div className="border-t border-zinc-800/80 pt-4 mt-1 flex flex-col gap-2">
+              <h3 className="text-sm font-bold text-zinc-200">Privacidad y Términos</h3>
               <p className="text-xs text-zinc-400 leading-relaxed">
                 Tu email será visible para tu entrenador vinculado. Tu teléfono podrá utilizarse para enviar recordatorios de pago. Tu contraseña nunca será visible para nadie.
               </p>
+              <div className="flex flex-col gap-2.5 pt-1">
+                <label className="flex items-start gap-2.5 text-xs text-zinc-300 cursor-pointer select-none">
+                  <input 
+                    type="checkbox" 
+                    id="reg-student-terms" 
+                    required 
+                    className="mt-0.5 h-4 w-4 rounded border-zinc-700 bg-zinc-900 text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-600 shrink-0" 
+                  />
+                  <span>
+                    He leído y acepto los{' '}
+                    <a 
+                      href="/Syncro_Terminos_y_Condiciones.pdf" 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-indigo-400 hover:text-indigo-300 underline font-semibold"
+                    >
+                      Términos y Condiciones
+                    </a>
+                    {' '}*
+                  </span>
+                </label>
+                <label className="flex items-start gap-2.5 text-xs text-zinc-300 cursor-pointer select-none">
+                  <input 
+                    type="checkbox" 
+                    id="reg-student-privacy" 
+                    required 
+                    className="mt-0.5 h-4 w-4 rounded border-zinc-700 bg-zinc-900 text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-600 shrink-0" 
+                  />
+                  <span>
+                    He leído y acepto las{' '}
+                    <a 
+                      href="/Syncro_Politica_de_Privacidad.pdf" 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-indigo-400 hover:text-indigo-300 underline font-semibold"
+                    >
+                      Políticas de Privacidad
+                    </a>
+                    {' '}*
+                  </span>
+                </label>
+              </div>
             </div>
 
             <button type="submit" disabled={loadingAction === 'registerStudent'} className="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 font-bold active:scale-95 transition-all text-sm mt-2 shadow-lg shadow-blue-500/10 disabled:opacity-50">
