@@ -1,5 +1,6 @@
+import math
 import uuid
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
@@ -1391,9 +1392,76 @@ def import_routine(
 
 
 from pydantic import BaseModel
+
+class AdjustClassesReq(BaseModel):
+    clases_restantes: int
+
 class ReloadClassesReq(BaseModel):
     clases: int
     gym_paquete_id: str = None
+
+@router.patch("/students/{student_id}/adjust_classes")
+def adjust_classes(
+    student_id: uuid.UUID,
+    req: AdjustClassesReq,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(get_current_user)
+):
+    """
+    Establece las clases restantes de un alumno sin modificar el paquete
+    asignado ni las clases compradas.
+    """
+    if current_user.rol != "entrenador":
+        raise HTTPException(status_code=403, detail="Sólo entrenadores")
+
+    alumno = db.query(models.Alumno).filter(
+        models.Alumno.id_usuario == student_id,
+        models.Alumno.id_entrenador == current_user.id_usuario
+    ).first()
+
+    if not alumno:
+        raise HTTPException(status_code=404, detail="Alumno no encontrado")
+
+    if alumno.tipo_membresia != "por_clases":
+        raise HTTPException(
+            status_code=400,
+            detail="Este alumno no tiene membresía por clases"
+        )
+
+    if req.clases_restantes < 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Las clases restantes no pueden ser negativas"
+        )
+
+    alumno.clases_restantes = req.clases_restantes
+
+    coach = db.query(models.Entrenador).filter(
+        models.Entrenador.id_usuario == current_user.id_usuario
+    ).first()
+
+    if alumno.fecha_inicio_paquete and coach and coach.gym_frecuencia_valor:
+        freq_tipo = coach.gym_frecuencia_tipo or "por_semana"
+        freq_val = coach.gym_frecuencia_valor or 3
+        clases = alumno.clases_restantes or 0
+        if freq_tipo == "por_semana":
+            semanas = math.ceil(clases / freq_val) if freq_val else 1
+            alumno.vencimiento_estimado_clases = date.today() + timedelta(weeks=semanas)
+        else:
+            dias_por_clase = 30 / freq_val if freq_val else 30
+            alumno.vencimiento_estimado_clases = date.today() + timedelta(days=math.ceil(clases * dias_por_clase))
+
+    db.commit()
+    db.refresh(alumno)
+    return {
+        "ok": True,
+        "clases_restantes": alumno.clases_restantes,
+        "gym_paquete_id": alumno.gym_paquete_id,
+        "vencimiento_estimado": (
+            str(alumno.vencimiento_estimado_clases)
+            if alumno.vencimiento_estimado_clases else None
+        ),
+    }
 
 @router.post("/students/{student_id}/reload_classes")
 def reload_classes(

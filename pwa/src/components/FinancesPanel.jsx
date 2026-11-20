@@ -10,6 +10,7 @@ export default function FinancesPanel({ students, api, loadStudents, modal, prof
   
   const [filter, setFilter] = useState('todos'); // todos, pagados, pendientes, vencen_2_dias, vencen_hoy, vencidos
   const [chartMonths, setChartMonths] = useState(6);
+  const [searchQuery, setSearchQuery] = useState('');
   const [reloadModal, setReloadModal] = useState({ isOpen: false, studentId: null, defaultPkgId: null });
 
   const isGymMode = gymConfig?.tipo_cuenta === 'gimnasio';
@@ -186,6 +187,50 @@ export default function FinancesPanel({ students, api, loadStudents, modal, prof
     }
   };
 
+  const handleAdjustClasses = async (studentId) => {
+    const student = payments?.find(p => p.id_alumno === studentId);
+    const currentClasses = student?.clases_restantes || 0;
+
+    const clasesStr = window.prompt(
+      `Ajuste manual de clases restantes.\n\n` +
+      `Clases actuales: ${currentClasses}\n` +
+      `Paquete actual: ${student?.clases_compradas || '?'} clases\n\n` +
+      `Ingresa la cantidad CORRECTA de clases que le quedan al alumno:`,
+      String(currentClasses)
+    );
+
+    if (clasesStr === null) return;
+    const clases = parseInt(clasesStr, 10);
+
+    if (isNaN(clases) || clases < 0) {
+      await modal.alert("Cantidad inválida. Debe ser un número mayor o igual a 0.");
+      return;
+    }
+
+    if (clases === currentClasses) return;
+
+    const confirmed = await modal.confirm(
+      `¿Confirmas que deseas ajustar las clases restantes de ` +
+      `${student?.nombre_alumno} de ${currentClasses} → ${clases}?\n\n` +
+      `El paquete asignado NO se modificará.`
+    );
+    if (!confirmed) return;
+
+    try {
+      await api.patch(
+        `/api/v1/coaches/students/${studentId}/adjust_classes`,
+        { clases_restantes: clases }
+      );
+      await loadFinances();
+      await modal.alert(
+        `Clases ajustadas correctamente.\n` +
+        `${student?.nombre_alumno} ahora tiene ${clases} clases restantes.`
+      );
+    } catch (e) {
+      await modal.alert("Error al ajustar clases: " + (e.message || "Error desconocido"));
+    }
+  };
+
   const handleConfirmReloadPackage = async (pkgId) => {
     const studentId = reloadModal.studentId;
     const pkg = gymConfig.gym_paquetes_clases.find(p => p.id === pkgId);
@@ -244,6 +289,12 @@ export default function FinancesPanel({ students, api, loadStudents, modal, prof
   const safePayments = Array.isArray(payments) ? payments : [];
   
   const filteredPayments = safePayments.filter(p => {
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      const name = (p.nombre_alumno || '').toLowerCase();
+      const email = (p.email_alumno || '').toLowerCase();
+      if (!name.includes(q) && !email.includes(q)) return false;
+    }
     if (filter === 'pagados') return p.pagado;
     if (filter === 'pendientes') return !p.pagado;
     if (filter === 'vencen_2_dias') return !p.pagado && p.dias_para_vencer === 2;
@@ -426,7 +477,47 @@ export default function FinancesPanel({ students, api, loadStudents, modal, prof
         </div>
 
         <h2 className="text-xl font-bold text-white mb-6">Estado de Pagos del Mes</h2>
-                
+
+        <div className="mb-4">
+          <div className="relative">
+            <svg xmlns="http://www.w3.org/2000/svg"
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500"
+              fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Buscar alumno por nombre o email..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-10 pr-4
+                         py-2.5 text-sm text-white placeholder-zinc-500 outline-none
+                         focus:border-emerald-500 transition-colors"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500
+                           hover:text-zinc-300 transition-colors"
+                type="button"
+                aria-label="Limpiar búsqueda"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4"
+                  fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                    d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
+          {searchQuery && (
+            <p className="text-xs text-zinc-500 mt-1.5 ml-1">
+              {filteredPayments.length} resultado{filteredPayments.length !== 1 ? 's' : ''} encontrado{filteredPayments.length !== 1 ? 's' : ''}
+            </p>
+          )}
+        </div>
+
         {/* Tabs de Filtro */}
         {!isGymMode && (
           <div className="flex flex-wrap gap-2 mb-6">
@@ -564,9 +655,24 @@ export default function FinancesPanel({ students, api, loadStudents, modal, prof
                       <MessageCircle className="w-5 h-5" />
                     </button>
                     {p.tipo_membresia === 'por_clases' && (
+                      <>
                       <button onClick={() => handleReloadClasses(p.id_alumno, p.gym_paquete_id)} className="px-3 py-2 text-sm bg-amber-600/20 text-amber-400 hover:bg-amber-600 hover:text-white rounded-lg transition-colors font-medium" title="Recargar Clases">
                         + Clases
                       </button>
+                      <button
+                        onClick={() => handleAdjustClasses(p.id_alumno)}
+                        className="p-2 bg-zinc-800 text-zinc-400 hover:text-amber-400
+                                   hover:bg-amber-500/10 rounded-lg transition-colors"
+                        title="Ajustar clases manualmente"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5"
+                          fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                      </button>
+                      </>
                     )}
                     {!p.pagado ? (
                       <button onClick={() => handleMarkPaid(p.id_alumno)} className="p-2 bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600 hover:text-white rounded-lg transition-colors" title="Marcar Pagado">

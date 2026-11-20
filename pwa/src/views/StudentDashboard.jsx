@@ -26,6 +26,7 @@ import StudentProfile from '../components/StudentProfile.jsx';
 import { Info } from 'lucide-react';
 
 import MembershipModal from '../components/MembershipModal.jsx';
+import PWAInstallBanner from '../components/PWAInstallBanner.jsx';
 
 
 
@@ -180,7 +181,8 @@ export default function StudentDashboard() {
 
 
 
-  // 1. Si está cargando o la petición está en vuelo / pendiente y no hay error, mantener pantalla de carga
+
+  // 1. Si está cargando o la petición está en vuelo / pendiente y no hay error, mantener pantalla de carga
   if (loadingProfile || pendingProfile || (!profile && !profileError)) {
     return (
       <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center gap-4">
@@ -371,7 +373,7 @@ export default function StudentDashboard() {
 
       )}
 
-      
+      <PWAInstallBanner />
 
       {profile?.usuario && !profile.usuario.telefono && (
 
